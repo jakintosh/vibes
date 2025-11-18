@@ -1,15 +1,15 @@
 package main
 
-import (
-	"fmt"
-	"os"
+import "git.sr.ht/~jakintosh/command-go/pkg/args"
 
-	"assistant/internal/app"
-)
+var Root = &args.Command{
+	Name:    "assistant",
+	Help:    "Assistant application",
+	Subcommands: []*args.Command{
+		Notes,
+	},
+}
 
 func main() {
-	if err := app.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
+	Root.Parse()
 }

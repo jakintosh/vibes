@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -64,4 +65,24 @@ func InitDB() (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+// InsertNoteCreatedEvent inserts a NoteCreated event into the database
+func InsertNoteCreatedEvent(db *sql.DB, noteID string) error {
+	// Create empty payload for NoteCreated event
+	payloadJSON := "{}"
+
+	timestamp := time.Now().UnixMilli()
+
+	insertSQL := `
+	INSERT INTO events (timestamp, event_type, source_note_id, payload_json)
+	VALUES (?, ?, ?, ?)
+	`
+
+	_, err := db.Exec(insertSQL, timestamp, "NoteCreated", noteID, payloadJSON)
+	if err != nil {
+		return fmt.Errorf("failed to insert NoteCreated event: %w", err)
+	}
+
+	return nil
 }
