@@ -1,6 +1,8 @@
 package app
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,8 +20,16 @@ func CreateNote(content string) (string, error) {
 		return "", fmt.Errorf("failed to create notes directory: %w", err)
 	}
 
-	// Generate timestamp-based filename (YYYYMMDD-HHMMSS.txt)
-	noteID := time.Now().Format("20060102-150405")
+	// Generate random suffix for uniqueness (4 bytes = 8 hex chars)
+	randomBytes := make([]byte, 4)
+	if _, err := rand.Read(randomBytes); err != nil {
+		return "", fmt.Errorf("failed to generate random suffix: %w", err)
+	}
+	suffix := hex.EncodeToString(randomBytes)
+
+	// Generate timestamp-based filename with uniqueness suffix (YYYYMMDD-HHMMSS-XXXXXXXX.txt)
+	timestamp := time.Now().Format("20060102-150405")
+	noteID := fmt.Sprintf("%s-%s", timestamp, suffix)
 	filename := fmt.Sprintf("%s.txt", noteID)
 	filepath := filepath.Join(notesDir, filename)
 
