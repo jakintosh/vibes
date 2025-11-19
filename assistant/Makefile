@@ -1,4 +1,4 @@
-.PHONY: build test run clean
+.PHONY: build test run clean test-record
 
 # Build the application
 build:
@@ -19,3 +19,11 @@ run:
 clean:
 	@echo "Cleaning..."
 	@rm -rf bin/
+
+# Run tests and record new VCR cassettes
+# Requires GOOGLE_API_KEY to be set
+test-record:
+	@echo "Removing VCR cassettes..."
+	@rm -rf internal/llm/google/fixtures
+	@echo "Running tests to record new cassettes..."
+	@go test -v ./...

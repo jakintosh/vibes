@@ -34,3 +34,9 @@ type Theme struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }
+
+// Insight represents a structured piece of intelligence extracted from a note
+type Insight struct {
+	Type    string                 `json:"type"`
+	Payload map[string]interface{} `json:"payload"`
+}

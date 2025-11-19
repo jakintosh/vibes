@@ -1,0 +1,91 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 580
+        transfer_encoding: []
+        trailer: {}
+        host: generativelanguage.googleapis.com
+        remote_addr: ""
+        request_uri: ""
+        body: |
+            {"contents":[{"parts":[{"text":"Analyze the following note and extract insights matching the defined types.\nReturn a JSON array of objects, where each object has a \"type\" field (matching one of the defined Type names) and a \"payload\" field containing the extracted data matching the schema.\n\nDefined Types:\nType: Task\nDescription: A specific action item or todo.\nSchema:\n{\n  \"description\": \"string\",\n  \"priority\": \"string\"\n}\n\nNote Content:\nI need to buy milk.\n\nOutput JSON:"}],"role":"user"}],"generationConfig":{"responseMimeType":"application/json"}}
+        form: {}
+        headers:
+            Content-Type:
+                - application/json
+            User-Agent:
+                - google-genai-sdk/1.36.0 gl-go/go1.25.4 X:nodwarf5
+            X-Goog-Api-Client:
+                - google-genai-sdk/1.36.0 gl-go/go1.25.4 X:nodwarf5
+            X-Goog-Api-Key:
+                - dummy-key-for-playback
+        url: https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent
+        method: POST
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        transfer_encoding: []
+        trailer: {}
+        content_length: -1
+        uncompressed: true
+        body: |
+            {
+              "candidates": [
+                {
+                  "content": {
+                    "parts": [
+                      {
+                        "text": "[\n  {\n    \"type\": \"Task\",\n    \"payload\": {\n      \"description\": \"buy milk\",\n      \"priority\": \"standard\"\n    }\n  }\n]"
+                      }
+                    ],
+                    "role": "model"
+                  },
+                  "finishReason": "STOP",
+                  "index": 0
+                }
+              ],
+              "usageMetadata": {
+                "promptTokenCount": 109,
+                "candidatesTokenCount": 43,
+                "totalTokenCount": 476,
+                "promptTokensDetails": [
+                  {
+                    "modality": "TEXT",
+                    "tokenCount": 109
+                  }
+                ],
+                "thoughtsTokenCount": 324
+              },
+              "modelVersion": "gemini-2.5-flash-preview-09-2025",
+              "responseId": "Z0cdadvsLK3OjrEPhri1sQ0"
+            }
+        headers:
+            Alt-Svc:
+                - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+            Content-Type:
+                - application/json; charset=UTF-8
+            Date:
+                - Wed, 19 Nov 2025 04:28:23 GMT
+            Server:
+                - scaffolding on HTTPServer2
+            Server-Timing:
+                - gfet4t7; dur=1898
+            Vary:
+                - Origin
+                - X-Origin
+                - Referer
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - SAMEORIGIN
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 8.059244449s
