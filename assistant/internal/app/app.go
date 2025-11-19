@@ -1,10 +1,4 @@
 package app
 
-import "fmt"
+// This package contains domain logic for the notes application
 
-// Run is the main entry point for the application
-func Run() error {
-	fmt.Println("Assistant application started")
-	// TODO: Implement application logic
-	return nil
-}
