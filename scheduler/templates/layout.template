@@ -1,0 +1,30 @@
+{{define "layout"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Scheduler</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="logo">
+                <h2>Scheduler</h2>
+            </div>
+            <nav>
+                <a href="/calendar" hx-get="/calendar" hx-target="#main-content" hx-push-url="true" class="nav-link">Calendar</a>
+                <a href="/request" hx-get="/request" hx-target="#main-content" hx-push-url="true" class="nav-link">Request Event</a>
+                <a href="/admin" hx-get="/admin" hx-target="#main-content" hx-push-url="true" class="nav-link">Admin</a>
+            </nav>
+        </aside>
+        <main id="main-content" class="content-area">
+            {{template "content" .}}
+        </main>
+    </div>
+</body>
+</html>
+{{end}}

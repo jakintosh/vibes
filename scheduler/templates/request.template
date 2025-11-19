@@ -1,0 +1,70 @@
+{{define "content"}}
+<div class="page-container fade-in">
+    <header class="page-header">
+        <h1>Request an Event</h1>
+        <p>Submit your event details and preferred dates.</p>
+    </header>
+
+    <form hx-post="/request" hx-target="#form-response" class="request-form">
+        <div class="form-group">
+            <label>Contact Name</label>
+            <input type="text" name="name" required placeholder="John Doe">
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Phone</label>
+                <input type="tel" name="phone" required placeholder="(555) 123-4567">
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" name="email" required placeholder="john@example.com">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Description</label>
+            <textarea name="description" rows="4" required placeholder="Describe your event..."></textarea>
+        </div>
+
+        <div class="form-group checkbox-group">
+            <label class="checkbox-container">
+                <input type="checkbox" name="av">
+                <span class="checkmark"></span>
+                Needs AV Equipment
+            </label>
+        </div>
+
+        <div class="dates-section">
+            <h3>Preferred Dates</h3>
+            <div class="date-input-group">
+                <label>Primary Date</label>
+                <div class="date-row">
+                    <input type="datetime-local" name="date1_start" required>
+                    <span>to</span>
+                    <input type="datetime-local" name="date1_end" required>
+                </div>
+            </div>
+            <div class="date-input-group">
+                <label>Alternate Date 1</label>
+                <div class="date-row">
+                    <input type="datetime-local" name="date2_start">
+                    <span>to</span>
+                    <input type="datetime-local" name="date2_end">
+                </div>
+            </div>
+            <div class="date-input-group">
+                <label>Alternate Date 2</label>
+                <div class="date-row">
+                    <input type="datetime-local" name="date3_start">
+                    <span>to</span>
+                    <input type="datetime-local" name="date3_end">
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn-primary">Submit Request</button>
+        <div id="form-response"></div>
+    </form>
+</div>
+{{end}}

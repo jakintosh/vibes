@@ -1,0 +1,52 @@
+{{define "content"}}
+<div class="page-container fade-in">
+    <header class="page-header">
+        <h1>Admin Dashboard</h1>
+        <p>Manage event requests.</p>
+    </header>
+
+    <div class="events-list">
+        {{range .Events}}
+        <div class="event-card {{if eq .Status "Accepted"}}status-accepted{{else}}status-requested{{end}}">
+            <div class="event-header">
+                <h3>{{.Description}}</h3>
+                <span class="status-badge {{.Status}}">{{.Status}}</span>
+            </div>
+            <div class="event-details">
+                <p><strong>Contact:</strong> {{.ContactName}} ({{.ContactEmail}})</p>
+                <p><strong>AV Needed:</strong> {{if .NeedsAV}}Yes{{else}}No{{end}}</p>
+                
+                {{if eq .Status "Requested"}}
+                <div class="date-options">
+                    <h4>Requested Dates:</h4>
+                    {{$eventID := .ID}}
+                    {{$conflicts := .DateConflicts}}
+                    {{range $i, $d := .Dates}}
+                    <div class="date-option">
+                        <span>{{.Start.Format "Jan 02, 3:04 PM"}} - {{.End.Format "3:04 PM"}}</span>
+                        
+                        {{if index $conflicts $i}}
+                        <span class="status-badge conflict">Conflict</span>
+                        {{else}}
+                        <form hx-post="/admin/accept/{{$eventID}}" hx-target="#main-content" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
+                            <input type="hidden" name="start" value="{{.Start.Format "2006-01-02T15:04"}}">
+                            <input type="hidden" name="end" value="{{.End.Format "2006-01-02T15:04"}}">
+                            <button type="submit" class="btn-sm btn-accept">Accept This Date</button>
+                        </form>
+                        {{end}}
+                    </div>
+                    {{end}}
+                </div>
+                {{else}}
+                <div class="accepted-info">
+                    <p><strong>Accepted Date:</strong> {{.AcceptedDate.Start.Format "Jan 02, 2006 3:04 PM"}} - {{.AcceptedDate.End.Format "3:04 PM"}}</p>
+                </div>
+                {{end}}
+            </div>
+        </div>
+        {{else}}
+        <p class="no-events">No events found.</p>
+        {{end}}
+    </div>
+</div>
+{{end}}
