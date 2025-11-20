@@ -40,3 +40,16 @@ func CreateNote(content string) (string, error) {
 
 	return noteID, nil
 }
+
+// ReadNote reads a note's content from disk by its ID
+func ReadNote(noteID string) (string, error) {
+	filename := fmt.Sprintf("%s.txt", noteID)
+	filepath := filepath.Join(notesDir, filename)
+
+	content, err := os.ReadFile(filepath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read note %s: %w", noteID, err)
+	}
+
+	return string(content), nil
+}

@@ -86,3 +86,26 @@ func InsertNoteCreatedEvent(db *sql.DB, noteID string) error {
 
 	return nil
 }
+
+// InsertInsightEvent inserts an insight event (e.g., TaskDiscovered, ThemeIdentified) into the database
+func InsertInsightEvent(db *sql.DB, noteID string, insight Insight, payloadJSON string) error {
+	timestamp := time.Now().UnixMilli()
+
+	// Convert insight type to event type (e.g., "Task" -> "TaskDiscovered", "Theme" -> "ThemeIdentified")
+	eventType := fmt.Sprintf("%sDiscovered", insight.Type)
+	if insight.Type == "Theme" {
+		eventType = "ThemeIdentified"
+	}
+
+	insertSQL := `
+	INSERT INTO events (timestamp, event_type, source_note_id, payload_json)
+	VALUES (?, ?, ?, ?)
+	`
+
+	_, err := db.Exec(insertSQL, timestamp, eventType, noteID, payloadJSON)
+	if err != nil {
+		return fmt.Errorf("failed to insert %s event: %w", eventType, err)
+	}
+
+	return nil
+}
