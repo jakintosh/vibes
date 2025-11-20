@@ -95,7 +95,7 @@ func GetEvents() ([]Event, error) {
 			return nil, err
 		}
 
-		if acceptedDateStr.Valid {
+		if acceptedDateStr.Valid && acceptedDateStr.String != "" {
 			var ad EventDate
 			if err := json.Unmarshal([]byte(acceptedDateStr.String), &ad); err != nil {
 				return nil, err
@@ -106,6 +106,32 @@ func GetEvents() ([]Event, error) {
 		events = append(events, e)
 	}
 	return events, nil
+}
+
+func GetEvent(id string) (*Event, error) {
+	var e Event
+	var datesStr string
+	var acceptedDateStr sql.NullString
+
+	err := db.QueryRow("SELECT id, contact_name, contact_phone, contact_email, description, needs_av, dates, status, accepted_date FROM events WHERE id = ?", id).Scan(
+		&e.ID, &e.ContactName, &e.ContactPhone, &e.ContactEmail, &e.Description, &e.NeedsAV, &datesStr, &e.Status, &acceptedDateStr)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal([]byte(datesStr), &e.Dates); err != nil {
+		return nil, err
+	}
+
+	if acceptedDateStr.Valid && acceptedDateStr.String != "" {
+		var ad EventDate
+		if err := json.Unmarshal([]byte(acceptedDateStr.String), &ad); err != nil {
+			return nil, err
+		}
+		e.AcceptedDate = &ad
+	}
+
+	return &e, nil
 }
 
 func AcceptEvent(id string, date EventDate) error {

@@ -6,20 +6,20 @@
             <p class="current-month">{{.MonthName}}</p>
         </div>
         <div class="calendar-controls">
+            {{if ne .ViewMode "agenda"}}
             <div class="btn-group">
-                {{if ne .ViewMode "agenda"}}
                 <button class="btn-secondary" hx-get="/calendar?view={{.ViewMode}}&date={{.PrevDate}}" hx-target="#main-content">
                     &larr; Prev
                 </button>
                 <button class="btn-secondary" hx-get="/calendar?view={{.ViewMode}}&date={{.NextDate}}" hx-target="#main-content">
                     Next &rarr;
                 </button>
-                {{end}}
             </div>
+            {{end}}
             <div class="btn-group">
                 <button class="btn-secondary {{if eq .ViewMode "month"}}active{{end}}" hx-get="/calendar?view=month&date={{.CurrentDate.Format "2006-01-02"}}" hx-target="#main-content">Month</button>
                 <button class="btn-secondary {{if eq .ViewMode "week"}}active{{end}}" hx-get="/calendar?view=week&date={{.CurrentDate.Format "2006-01-02"}}" hx-target="#main-content">Week</button>
-                <button class="btn-secondary {{if eq .ViewMode " agenda"}}active{{end}}" hx-get="/calendar?view=agenda"
+                <button class="btn-secondary {{if eq .ViewMode "agenda"}}active{{end}}" hx-get="/calendar?view=agenda"
                     hx-target="#main-content">Agenda</button>
             </div>
         </div>
@@ -44,10 +44,10 @@
                 {{range $.Events}}
                 {{if and (eq .DisplayDate.Year $day.Year) (eq .DisplayDate.Month $day.Month) (eq .DisplayDate.Day
                 $day.Day)}}
-                <div class="event-badge {{.Event.Status}} {{if .IsConflict}}conflict{{end}}">
-                    <span class="event-time">{{.Start.Format "3:04PM"}}</span>
+                <a href="/event/{{.Event.ID}}" class="event-badge {{.Event.Status}} {{if .IsConflict}}conflict{{end}}">
+                    <span class="event-time">{{.Start.Format "3:04 PM"}}</span>
                     <span class="event-title">{{.Event.ContactName}}</span>
-                </div>
+                </a>
                 {{end}}
                 {{end}}
             </div>
@@ -58,53 +58,76 @@
     {{else if eq .ViewMode "week"}}
     <!-- Week View -->
     <div class="calendar-week-container">
-        <div class="week-header">
-            <div class="time-axis-header"></div>
-            {{$curr := .WeekStart}}
-            {{range $i := .GridDays}}
-            <!-- Reusing GridDays logic not ideal, let's loop 7 times manually or use a helper -->
-            {{end}}
-            <!-- Manual loop for 7 days starting from WeekStart -->
-            <div class="week-day-col-header">Sun {{formatDate (.WeekStart.AddDate 0 0 0) "2"}}</div>
-            <div class="week-day-col-header">Mon {{formatDate (.WeekStart.AddDate 0 0 1) "2"}}</div>
-            <div class="week-day-col-header">Tue {{formatDate (.WeekStart.AddDate 0 0 2) "2"}}</div>
-            <div class="week-day-col-header">Wed {{formatDate (.WeekStart.AddDate 0 0 3) "2"}}</div>
-            <div class="week-day-col-header">Thu {{formatDate (.WeekStart.AddDate 0 0 4) "2"}}</div>
-            <div class="week-day-col-header">Fri {{formatDate (.WeekStart.AddDate 0 0 5) "2"}}</div>
-            <div class="week-day-col-header">Sat {{formatDate (.WeekStart.AddDate 0 0 6) "2"}}</div>
-        </div>
-
-        <div class="week-body">
-            <div class="time-axis">
-                {{range $i := seq 0 23}}
-                <div class="time-slot"><span>{{$i}}:00</span></div>
+        <div class="week-scroll-wrapper">
+            <div class="week-header">
+                <div class="time-axis-header"></div>
+                {{$curr := .WeekStart}}
+                {{range $i := .GridDays}}
+                <!-- Reusing GridDays logic not ideal, let's loop 7 times manually or use a helper -->
                 {{end}}
+                <!-- Manual loop for 7 days starting from WeekStart -->
+                <div class="week-day-col-header">Sun {{formatDate (.WeekStart.AddDate 0 0 0) "2"}}</div>
+                <div class="week-day-col-header">Mon {{formatDate (.WeekStart.AddDate 0 0 1) "2"}}</div>
+                <div class="week-day-col-header">Tue {{formatDate (.WeekStart.AddDate 0 0 2) "2"}}</div>
+                <div class="week-day-col-header">Wed {{formatDate (.WeekStart.AddDate 0 0 3) "2"}}</div>
+                <div class="week-day-col-header">Thu {{formatDate (.WeekStart.AddDate 0 0 4) "2"}}</div>
+                <div class="week-day-col-header">Fri {{formatDate (.WeekStart.AddDate 0 0 5) "2"}}</div>
+                <div class="week-day-col-header">Sat {{formatDate (.WeekStart.AddDate 0 0 6) "2"}}</div>
             </div>
 
-            <!-- 7 Columns for days -->
-            {{range $dayOffset := seq 0 6}}
-            <div class="week-day-col">
-                <!-- Grid lines matching time slots -->
-                {{range $i := seq 0 23}}
-                <div class="day-time-slot"></div>
-                {{end}}
+            <div class="week-body">
+                <div class="time-axis">
+                    <div class="time-slot"><span>12 AM</span></div>
+                    <div class="time-slot"><span>1 AM</span></div>
+                    <div class="time-slot"><span>2 AM</span></div>
+                    <div class="time-slot"><span>3 AM</span></div>
+                    <div class="time-slot"><span>4 AM</span></div>
+                    <div class="time-slot"><span>5 AM</span></div>
+                    <div class="time-slot"><span>6 AM</span></div>
+                    <div class="time-slot"><span>7 AM</span></div>
+                    <div class="time-slot"><span>8 AM</span></div>
+                    <div class="time-slot"><span>9 AM</span></div>
+                    <div class="time-slot"><span>10 AM</span></div>
+                    <div class="time-slot"><span>11 AM</span></div>
+                    <div class="time-slot"><span>12 PM</span></div>
+                    <div class="time-slot"><span>1 PM</span></div>
+                    <div class="time-slot"><span>2 PM</span></div>
+                    <div class="time-slot"><span>3 PM</span></div>
+                    <div class="time-slot"><span>4 PM</span></div>
+                    <div class="time-slot"><span>5 PM</span></div>
+                    <div class="time-slot"><span>6 PM</span></div>
+                    <div class="time-slot"><span>7 PM</span></div>
+                    <div class="time-slot"><span>8 PM</span></div>
+                    <div class="time-slot"><span>9 PM</span></div>
+                    <div class="time-slot"><span>10 PM</span></div>
+                    <div class="time-slot"><span>11 PM</span></div>
+                </div>
 
-                <!-- Events -->
-                {{$targetDate := $.WeekStart.AddDate 0 0 $dayOffset}}
-                {{range $.Events}}
-                {{if and (eq .DisplayDate.Year $targetDate.Year) (eq .DisplayDate.Month $targetDate.Month) (eq
-                .DisplayDate.Day $targetDate.Day)}}
-                <div class="week-event {{.Event.Status}} {{if .IsConflict}}conflict{{end}}"
-                    style="top: {{.Top}}%; height: {{.Height}}%;">
-                    <div class="week-event-content">
-                        <span class="time">{{.Start.Format "3:04"}}</span>
-                        <span class="title">{{.Event.ContactName}}</span>
-                    </div>
+                <!-- 7 Columns for days -->
+                {{range $dayOffset := seq 0 6}}
+                <div class="week-day-col">
+                    <!-- Grid lines matching time slots -->
+                    {{range $i := seq 0 23}}
+                    <div class="day-time-slot"></div>
+                    {{end}}
+
+                    <!-- Events -->
+                    {{$targetDate := $.WeekStart.AddDate 0 0 $dayOffset}}
+                    {{range $.Events}}
+                    {{if and (eq .DisplayDate.Year $targetDate.Year) (eq .DisplayDate.Month $targetDate.Month) (eq
+                    .DisplayDate.Day $targetDate.Day)}}
+                    <a href="/event/{{.Event.ID}}" class="week-event {{.Event.Status}} {{if .IsConflict}}conflict{{end}}"
+                        style="top: {{.Top}}%; height: {{.Height}}%;">
+                        <div class="week-event-content">
+                            <span class="time">{{.Start.Format "3:04 PM"}}</span>
+                            <span class="title">{{.Event.ContactName}}</span>
+                        </div>
+                    </a>
+                    {{end}}
+                    {{end}}
                 </div>
                 {{end}}
-                {{end}}
             </div>
-            {{end}}
         </div>
     </div>
 
@@ -116,8 +139,7 @@
                  The backend sends 'DisplayEvents' which are segments. 
                  For Agenda, we probably want to group them or just list them. 
                  Let's just list the segments for now as "Agenda Items". -->
-        <div class="calendar-event {{if eq .Event.Status " Accepted"}}accepted{{else}}requested{{end}} {{if
-            .IsConflict}}conflict{{end}}">
+        <a href="/event/{{.Event.ID}}" class="calendar-event {{if eq .Event.Status "Accepted"}}accepted{{else}}requested{{end}} {{if .IsConflict}}conflict{{end}}" style="text-decoration: none; color: inherit; display: flex;">
             <div class="cal-date">
                 <span class="day">{{.Start.Day}}</span>
                 <span class="month">{{.Start.Month}}</span>
@@ -129,7 +151,7 @@
                 <span class="badge {{.Event.Status}}">{{.Event.Status}}</span>
                 {{if .IsConflict}}<span class="badge conflict">Conflict</span>{{end}}
             </div>
-        </div>
+        </a>
         {{else}}
         <p>No events found.</p>
         {{end}}

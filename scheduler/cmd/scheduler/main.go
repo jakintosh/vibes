@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 	"text/template"
@@ -32,6 +33,7 @@ func main() {
 	http.HandleFunc("POST /request", handleRequestSubmit)
 	http.HandleFunc("GET /admin", handleAdmin)
 	http.HandleFunc("POST /admin/accept/{id}", handleAcceptEvent)
+	http.HandleFunc("GET /event/{id}", handleEventDetail)
 
 	log.Println("Server starting on :8080...")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
@@ -354,6 +356,26 @@ func handleAcceptEvent(w http.ResponseWriter, r *http.Request) {
 
 	// Return updated row or list
 	w.Header().Set("HX-Refresh", "true") // Simple refresh for now
+}
+
+func handleEventDetail(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	event, err := db.GetEvent(id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.NotFound(w, r)
+		} else {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	render(w, r, "event_detail.template", event)
 }
 
 func render(w http.ResponseWriter, r *http.Request, tmplName string, data any) {

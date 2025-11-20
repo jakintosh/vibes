@@ -10,10 +10,13 @@
         <div class="event-card {{if eq .Status "Accepted"}}status-accepted{{else}}status-requested{{end}}">
             <div class="event-header">
                 <h3>{{.Description}}</h3>
-                <span class="status-badge {{.Status}}">{{.Status}}</span>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <span class="status-badge {{.Status}}">{{.Status}}</span>
+                    <a href="/event/{{.ID}}" class="btn-sm btn-secondary" style="text-decoration: none;">Details</a>
+                </div>
             </div>
             <div class="event-details">
-                <p><strong>Contact:</strong> {{.ContactName}} ({{.ContactEmail}})</p>
+                <p><strong>Contact:</strong> {{.ContactName}} ({{.ContactEmail}}) - {{.ContactPhone}}</p>
                 <p><strong>AV Needed:</strong> {{if .NeedsAV}}Yes{{else}}No{{end}}</p>
                 
                 {{if eq .Status "Requested"}}

@@ -5,7 +5,7 @@
         <p>Submit your event details and preferred dates.</p>
     </header>
 
-    <form hx-post="/request" hx-target="#form-response" class="request-form">
+    <form hx-post="/request" hx-target="#form-response" class="request-form" id="eventRequestForm">
         <div class="form-group">
             <label>Contact Name</label>
             <input type="text" name="name" required placeholder="John Doe">
@@ -36,35 +36,186 @@
         </div>
 
         <div class="dates-section">
-            <h3>Preferred Dates</h3>
-            <div class="date-input-group">
-                <label>Primary Date</label>
-                <div class="date-row">
-                    <input type="datetime-local" name="date1_start" required>
-                    <span>to</span>
-                    <input type="datetime-local" name="date1_end" required>
+            <div class="form-section-title">Preferred Dates</div>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">
+                Please provide at least one preferred date range. You may add up to two alternate ranges.
+            </p>
+            
+            <div id="date-rows-container">
+                <!-- Primary Date Row (Always visible) -->
+                <div class="date-row-container" id="date-row-1">
+                    <div class="date-row-header">
+                        <span>Primary Option</span>
+                    </div>
+                    <div class="date-inputs-grid">
+                        <div>
+                            <label style="font-size: 0.8rem;">Start</label>
+                            <div class="datetime-group">
+                                <input type="date" class="date-part" required onchange="updateHiddenInput(1)">
+                                <input type="time" class="time-part" required onchange="updateHiddenInput(1)">
+                            </div>
+                        </div>
+                        <div class="date-separator">to</div>
+                        <div>
+                            <label style="font-size: 0.8rem;">End</label>
+                            <div class="datetime-group">
+                                <input type="date" class="date-part" required onchange="updateHiddenInput(1)">
+                                <input type="time" class="time-part" required onchange="updateHiddenInput(1)">
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Hidden inputs for backend compatibility -->
+                    <input type="hidden" name="date1_start" id="date1_start">
+                    <input type="hidden" name="date1_end" id="date1_end">
                 </div>
             </div>
-            <div class="date-input-group">
-                <label>Alternate Date 1</label>
-                <div class="date-row">
-                    <input type="datetime-local" name="date2_start">
-                    <span>to</span>
-                    <input type="datetime-local" name="date2_end">
-                </div>
-            </div>
-            <div class="date-input-group">
-                <label>Alternate Date 2</label>
-                <div class="date-row">
-                    <input type="datetime-local" name="date3_start">
-                    <span>to</span>
-                    <input type="datetime-local" name="date3_end">
-                </div>
-            </div>
+
+            <button type="button" id="add-date-btn" class="btn-outline" onclick="addDateRow()">
+                + Add Alternate Date
+            </button>
         </div>
 
         <button type="submit" class="btn-primary">Submit Request</button>
         <div id="form-response"></div>
     </form>
+
+    <script>
+        let dateRowCount = 1;
+        const maxRows = 3;
+
+        function addDateRow() {
+            if (dateRowCount >= maxRows) return;
+            
+            dateRowCount++;
+            const container = document.getElementById('date-rows-container');
+            const rowId = dateRowCount;
+            
+            const rowHtml = `
+                <div class="date-row-container fade-in" id="date-row-${rowId}">
+                    <div class="date-row-header">
+                        <span>Alternate Option ${rowId - 1}</span>
+                        <button type="button" class="btn-danger-text" onclick="removeDateRow(${rowId})">Delete</button>
+                    </div>
+                    <div class="date-inputs-grid">
+                        <div>
+                            <label style="font-size: 0.8rem;">Start</label>
+                            <div class="datetime-group">
+                                <input type="date" class="date-part" required onchange="updateHiddenInput(${rowId})">
+                                <input type="time" class="time-part" required onchange="updateHiddenInput(${rowId})">
+                            </div>
+                        </div>
+                        <div class="date-separator">to</div>
+                        <div>
+                            <label style="font-size: 0.8rem;">End</label>
+                            <div class="datetime-group">
+                                <input type="date" class="date-part" required onchange="updateHiddenInput(${rowId})">
+                                <input type="time" class="time-part" required onchange="updateHiddenInput(${rowId})">
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" name="date${rowId}_start" id="date${rowId}_start">
+                    <input type="hidden" name="date${rowId}_end" id="date${rowId}_end">
+                </div>
+            `;
+            
+            container.insertAdjacentHTML('beforeend', rowHtml);
+            
+            if (dateRowCount >= maxRows) {
+                document.getElementById('add-date-btn').style.display = 'none';
+            }
+        }
+
+        function removeDateRow(id) {
+            const row = document.getElementById(`date-row-${id}`);
+            if (row) {
+                row.remove();
+                dateRowCount--;
+                document.getElementById('add-date-btn').style.display = 'inline-flex';
+                
+                // Renumber remaining rows to ensure contiguous date2, date3 param names if needed
+                // But backend just checks date1, date2, date3. If we delete date2 and have date3, 
+                // we might want to shift date3 to date2 to be clean, but backend logic:
+                // if d := parseDate("date2"); d != nil { ... }
+                // if d := parseDate("date3"); d != nil { ... }
+                // So gaps are fine! We just need to make sure we don't submit empty date2 and full date3 if we want to be perfect,
+                // but strictly speaking, gaps are allowed by the Go code.
+                // However, for UI consistency (Alternate Option 1, Alternate Option 2), we might want to re-render or re-label.
+                // For simplicity in this iteration, we'll just leave gaps or simple re-labeling.
+                relabelRows();
+            }
+        }
+
+        function relabelRows() {
+            const rows = document.querySelectorAll('.date-row-container');
+            let count = 0;
+            rows.forEach((row) => {
+                count++;
+                // Update ID and hidden input names to be sequential to avoid confusion
+                // This is a bit heavier but cleaner.
+                // Actually, let's just update the visible label.
+                const headerSpan = row.querySelector('.date-row-header span');
+                if (count === 1) {
+                    headerSpan.textContent = "Primary Option";
+                } else {
+                    headerSpan.textContent = `Alternate Option ${count - 1}`;
+                }
+                
+                // Update the hidden inputs and onchange handlers to match the new index
+                // to ensure we send date1, date2, date3 sequentially.
+                const inputs = row.querySelectorAll('input[type="hidden"]');
+                inputs[0].name = `date${count}_start`;
+                inputs[0].id = `date${count}_start`;
+                inputs[1].name = `date${count}_end`;
+                inputs[1].id = `date${count}_end`;
+                
+                const dateInputs = row.querySelectorAll('.date-part, .time-part');
+                dateInputs.forEach(input => {
+                    input.setAttribute('onchange', `updateHiddenInput(${count})`);
+                });
+                
+                // Update delete button
+                const deleteBtn = row.querySelector('.btn-danger-text');
+                if (deleteBtn) {
+                    deleteBtn.setAttribute('onclick', `removeDateRow(${count})`);
+                }
+                
+                row.id = `date-row-${count}`;
+            });
+            dateRowCount = count;
+             if (dateRowCount < maxRows) {
+                document.getElementById('add-date-btn').style.display = 'inline-flex';
+            }
+        }
+
+        function updateHiddenInput(rowId) {
+            const row = document.getElementById(`date-row-${rowId}`);
+            if (!row) return;
+
+            const inputs = row.querySelectorAll('input');
+            // Order: date-start, time-start, date-end, time-end
+            // But we querySelectorAll returns all inputs including hidden.
+            // Let's be specific.
+            const dateStart = row.querySelector('.date-inputs-grid > div:nth-child(1) .date-part').value;
+            const timeStart = row.querySelector('.date-inputs-grid > div:nth-child(1) .time-part').value;
+            
+            const dateEnd = row.querySelector('.date-inputs-grid > div:nth-child(3) .date-part').value;
+            const timeEnd = row.querySelector('.date-inputs-grid > div:nth-child(3) .time-part').value;
+
+            const hiddenStart = document.getElementById(`date${rowId}_start`);
+            const hiddenEnd = document.getElementById(`date${rowId}_end`);
+
+            if (dateStart && timeStart) {
+                hiddenStart.value = `${dateStart}T${timeStart}`;
+            } else {
+                hiddenStart.value = "";
+            }
+
+            if (dateEnd && timeEnd) {
+                hiddenEnd.value = `${dateEnd}T${timeEnd}`;
+            } else {
+                hiddenEnd.value = "";
+            }
+        }
+    </script>
 </div>
 {{end}}
