@@ -23,6 +23,11 @@
         </div>
 
         <div class="form-group">
+            <label>Title</label>
+            <input type="text" name="title" required maxlength="30" placeholder="Event Title (max 30 chars)">
+        </div>
+
+        <div class="form-group">
             <label>Description</label>
             <textarea name="description" rows="4" required placeholder="Describe your event..."></textarea>
         </div>

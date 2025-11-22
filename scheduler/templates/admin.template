@@ -2,54 +2,94 @@
 <div class="page-container fade-in">
     <header class="page-header">
         <h1>Admin Dashboard</h1>
-        <p>Manage event requests.</p>
+        <p>Manage event requests and view upcoming schedule.</p>
     </header>
 
-    <div class="events-list">
-        {{range .Events}}
-        <div class="event-card {{if eq .Status "Accepted"}}status-accepted{{else}}status-requested{{end}}">
-            <div class="event-header">
-                <h3>{{.Description}}</h3>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <span class="status-badge {{.Status}}">{{.Status}}</span>
-                    <a href="/event/{{.ID}}" class="btn-sm btn-secondary" style="text-decoration: none;">Details</a>
-                </div>
-            </div>
-            <div class="event-details">
-                <p><strong>Contact:</strong> {{.ContactName}} ({{.ContactEmail}}) - {{.ContactPhone}}</p>
-                <p><strong>AV Needed:</strong> {{if .NeedsAV}}Yes{{else}}No{{end}}</p>
-                
-                {{if eq .Status "Requested"}}
-                <div class="date-options">
-                    <h4>Requested Dates:</h4>
-                    {{$eventID := .ID}}
-                    {{$conflicts := .DateConflicts}}
-                    {{range $i, $d := .Dates}}
-                    <div class="date-option">
-                        <span>{{.Start.Format "Jan 02, 3:04 PM"}} - {{.End.Format "3:04 PM"}}</span>
-                        
-                        {{if index $conflicts $i}}
-                        <span class="status-badge conflict">Conflict</span>
-                        {{else}}
-                        <form hx-post="/admin/accept/{{$eventID}}" hx-target="#main-content" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
-                            <input type="hidden" name="start" value="{{.Start.Format "2006-01-02T15:04"}}">
-                            <input type="hidden" name="end" value="{{.End.Format "2006-01-02T15:04"}}">
-                            <button type="submit" class="btn-sm btn-accept">Accept This Date</button>
-                        </form>
-                        {{end}}
-                    </div>
-                    {{end}}
-                </div>
-                {{else}}
-                <div class="accepted-info">
-                    <p><strong>Accepted Date:</strong> {{.AcceptedDate.Start.Format "Jan 02, 2006 3:04 PM"}} - {{.AcceptedDate.End.Format "3:04 PM"}}</p>
-                </div>
-                {{end}}
+    <section class="admin-section">
+        <div class="section-header">
+            <h2>Inbox <span class="badge">{{len .InboxEvents}}</span></h2>
+            <div class="sort-controls">
+                <span>Sort by:</span>
+                <a href="/admin?sort=longest_waiting" class="btn-sm {{if eq .SortMode "longest_waiting"}}btn-primary{{else}}btn-secondary{{end}}">Longest Waiting</a>
+                <a href="/admin?sort=soonest" class="btn-sm {{if eq .SortMode "soonest"}}btn-primary{{else}}btn-secondary{{end}}">Soonest</a>
             </div>
         </div>
-        {{else}}
-        <p class="no-events">No events found.</p>
-        {{end}}
-    </div>
+
+        <div class="events-list">
+            <table class="inbox-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Contact</th>
+                        <th>Requested Dates</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+            {{range .InboxEvents}}
+                <tr class="inbox-row">
+                    <td>
+                        <div class="inbox-title">{{.Title}}</div>
+                        <div class="inbox-meta">Created: {{.CreatedAt.Format "Jan 02"}}</div>
+                    </td>
+                    <td>
+                        <div class="inbox-contact">{{.ContactName}}</div>
+                        <div class="inbox-meta">{{.ContactEmail}}</div>
+                    </td>
+                    <td>
+                        <div class="inbox-dates">
+                            {{$conflicts := .DateConflicts}}
+                            {{range $i, $d := .Dates}}
+                            <div class="inbox-date-row">
+                                <span>{{.Start.Format "Jan 02, 3:04 PM"}}</span>
+                                {{if index $conflicts $i}}
+                                <span class="status-badge conflict">Conflict</span>
+                                {{else}}
+                                <span class="status-badge available">Available</span>
+                                {{end}}
+                            </div>
+                            {{end}}
+                        </div>
+                    </td>
+                    <td>
+                        <a href="/event/{{.ID}}" class="btn-sm btn-secondary">Details</a>
+                    </td>
+                </tr>
+            {{else}}
+                <tr>
+                    <td colspan="4" class="no-events">No pending requests.</td>
+                </tr>
+            {{end}}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="admin-section" style="margin-top: 40px;">
+        <div class="section-header">
+            <h2>Upcoming Events <span class="badge">{{len .UpcomingEvents}}</span></h2>
+        </div>
+
+        <div class="upcoming-list">
+            {{range .UpcomingEvents}}
+            <div class="upcoming-card">
+                <div class="calendar-icon">
+                    <div class="cal-month">{{.AcceptedDate.Start.Format "Jan"}}</div>
+                    <div class="cal-day">{{.AcceptedDate.Start.Format "02"}}</div>
+                    <div class="cal-time">{{.AcceptedDate.Start.Format "3:04 PM"}}</div>
+                </div>
+                <div class="upcoming-info">
+                    <div class="upcoming-title">{{.Title}}</div>
+                    <div class="upcoming-contact">{{.ContactName}}</div>
+                </div>
+                <div class="upcoming-action">
+                    <a href="/event/{{.ID}}" class="btn-sm btn-secondary">Details</a>
+                </div>
+            </div>
+            {{else}}
+            <p class="no-events">No upcoming events.</p>
+            {{end}}
+        </div>
+    </section>
 </div>
 {{end}}

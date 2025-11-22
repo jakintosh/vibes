@@ -22,6 +22,7 @@ type EventDate struct {
 
 type Event struct {
 	ID           string      `json:"id"`
+	Title        string      `json:"title"`
 	ContactName  string      `json:"contact_name"`
 	ContactPhone string      `json:"contact_phone"`
 	ContactEmail string      `json:"contact_email"`
@@ -30,6 +31,7 @@ type Event struct {
 	Dates        []EventDate `json:"dates"` // Stored as JSON
 	Status       EventStatus `json:"status"`
 	AcceptedDate *EventDate  `json:"accepted_date,omitempty"` // Stored as JSON
+	CreatedAt    time.Time   `json:"created_at"`
 }
 
 var db *sql.DB
@@ -43,6 +45,7 @@ func InitDB(dataSourceName string) error {
 
 	createTableSQL := `CREATE TABLE IF NOT EXISTS events (
 		id TEXT PRIMARY KEY,
+		title TEXT,
 		contact_name TEXT,
 		contact_phone TEXT,
 		contact_email TEXT,
@@ -50,7 +53,8 @@ func InitDB(dataSourceName string) error {
 		needs_av BOOLEAN,
 		dates TEXT,
 		status TEXT,
-		accepted_date TEXT
+		accepted_date TEXT,
+		created_at DATETIME
 	);`
 
 	_, err = db.Exec(createTableSQL)
@@ -67,14 +71,19 @@ func CreateEvent(e Event) error {
 		return err
 	}
 
-	_, err = db.Exec(`INSERT INTO events (id, contact_name, contact_phone, contact_email, description, needs_av, dates, status) 
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		e.ID, e.ContactName, e.ContactPhone, e.ContactEmail, e.Description, e.NeedsAV, string(datesJSON), e.Status)
+	// Ensure CreatedAt is set
+	if e.CreatedAt.IsZero() {
+		e.CreatedAt = time.Now()
+	}
+
+	_, err = db.Exec(`INSERT INTO events (id, title, contact_name, contact_phone, contact_email, description, needs_av, dates, status, created_at) 
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		e.ID, e.Title, e.ContactName, e.ContactPhone, e.ContactEmail, e.Description, e.NeedsAV, string(datesJSON), e.Status, e.CreatedAt)
 	return err
 }
 
 func GetEvents() ([]Event, error) {
-	rows, err := db.Query("SELECT id, contact_name, contact_phone, contact_email, description, needs_av, dates, status, accepted_date FROM events")
+	rows, err := db.Query("SELECT id, title, contact_name, contact_phone, contact_email, description, needs_av, dates, status, accepted_date, created_at FROM events")
 	if err != nil {
 		return nil, err
 	}
@@ -85,8 +94,9 @@ func GetEvents() ([]Event, error) {
 		var e Event
 		var datesStr string
 		var acceptedDateStr sql.NullString
+		var createdAt sql.NullTime
 
-		err := rows.Scan(&e.ID, &e.ContactName, &e.ContactPhone, &e.ContactEmail, &e.Description, &e.NeedsAV, &datesStr, &e.Status, &acceptedDateStr)
+		err := rows.Scan(&e.ID, &e.Title, &e.ContactName, &e.ContactPhone, &e.ContactEmail, &e.Description, &e.NeedsAV, &datesStr, &e.Status, &acceptedDateStr, &createdAt)
 		if err != nil {
 			return nil, err
 		}
@@ -103,6 +113,10 @@ func GetEvents() ([]Event, error) {
 			e.AcceptedDate = &ad
 		}
 
+		if createdAt.Valid {
+			e.CreatedAt = createdAt.Time
+		}
+
 		events = append(events, e)
 	}
 	return events, nil
@@ -112,9 +126,10 @@ func GetEvent(id string) (*Event, error) {
 	var e Event
 	var datesStr string
 	var acceptedDateStr sql.NullString
+	var createdAt sql.NullTime
 
-	err := db.QueryRow("SELECT id, contact_name, contact_phone, contact_email, description, needs_av, dates, status, accepted_date FROM events WHERE id = ?", id).Scan(
-		&e.ID, &e.ContactName, &e.ContactPhone, &e.ContactEmail, &e.Description, &e.NeedsAV, &datesStr, &e.Status, &acceptedDateStr)
+	err := db.QueryRow("SELECT id, title, contact_name, contact_phone, contact_email, description, needs_av, dates, status, accepted_date, created_at FROM events WHERE id = ?", id).Scan(
+		&e.ID, &e.Title, &e.ContactName, &e.ContactPhone, &e.ContactEmail, &e.Description, &e.NeedsAV, &datesStr, &e.Status, &acceptedDateStr, &createdAt)
 	if err != nil {
 		return nil, err
 	}
@@ -129,6 +144,10 @@ func GetEvent(id string) (*Event, error) {
 			return nil, err
 		}
 		e.AcceptedDate = &ad
+	}
+
+	if createdAt.Valid {
+		e.CreatedAt = createdAt.Time
 	}
 
 	return &e, nil

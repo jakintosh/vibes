@@ -7,42 +7,79 @@
 
     <div class="card">
         <div class="card-header">
-            <h2>{{.Description}}</h2>
-            <span class="badge badge-{{if eq .Status "Accepted"}}success{{else}}warning{{end}}">{{.Status}}</span>
+            <div class="header-content">
+                <h2>{{.Title}}</h2>
+                <span class="badge badge-{{if eq .Status "Accepted"}}success{{else}}warning{{end}}">{{.Status}}</span>
+            </div>
+            <div class="header-meta">
+                Created on {{.CreatedAt.Format "Jan 02, 2006"}}
+            </div>
         </div>
         <div class="card-body">
-            <div class="detail-group">
-                <label>Contact Name</label>
-                <p>{{.ContactName}}</p>
-            </div>
-            <div class="detail-group">
-                <label>Contact Email</label>
-                <p>{{.ContactEmail}}</p>
-            </div>
-            <div class="detail-group">
-                <label>Contact Phone</label>
-                <p>{{.ContactPhone}}</p>
-            </div>
-            <div class="detail-group">
-                <label>AV Needed</label>
-                <p>{{if .NeedsAV}}Yes{{else}}No{{end}}</p>
+            <div class="detail-grid">
+                <div class="detail-section">
+                    <h3>Contact Info</h3>
+                    <div class="info-row">
+                        <span class="label">Name:</span>
+                        <span class="value">{{.ContactName}}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Email:</span>
+                        <span class="value">{{.ContactEmail}}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Phone:</span>
+                        <span class="value">{{.ContactPhone}}</span>
+                    </div>
+                </div>
+                <div class="detail-section">
+                    <h3>Event Details</h3>
+                    <div class="info-row">
+                        <span class="label">AV Needed:</span>
+                        <span class="value">{{if .NeedsAV}}Yes{{else}}No{{end}}</span>
+                    </div>
+                    <div class="info-row full-width">
+                        <span class="label">Description:</span>
+                        <p class="value description-text">{{.Description}}</p>
+                    </div>
+                </div>
             </div>
 
-            <div class="detail-group">
-                <label>Dates</label>
+            <div class="dates-section">
+                <h3>Dates</h3>
                 {{if eq .Status "Accepted"}}
-                    <div class="date-item accepted">
-                        <strong>Accepted Date:</strong>
-                        {{formatDate .AcceptedDate.Start "Jan 02, 2006 15:04"}} - {{formatDate .AcceptedDate.End "15:04"}}
+                    <div class="date-card accepted">
+                        <div class="date-icon">
+                            <span class="month">{{.AcceptedDate.Start.Format "Jan"}}</span>
+                            <span class="day">{{.AcceptedDate.Start.Format "02"}}</span>
+                        </div>
+                        <div class="date-info">
+                            <div class="time">{{.AcceptedDate.Start.Format "3:04 PM"}} - {{.AcceptedDate.End.Format "3:04 PM"}}</div>
+                            <div class="status">Confirmed</div>
+                        </div>
                     </div>
                 {{else}}
-                    <ul class="date-list">
-                    {{range .Dates}}
-                        <li>
-                            {{formatDate .Start "Jan 02, 2006 15:04"}} - {{formatDate .End "15:04"}}
-                        </li>
-                    {{end}}
-                    </ul>
+                    <div class="requested-dates-list">
+                        {{$eventID := .ID}}
+                        {{range .Dates}}
+                        <div class="date-card requested">
+                            <div class="date-icon">
+                                <span class="month">{{.Start.Format "Jan"}}</span>
+                                <span class="day">{{.Start.Format "02"}}</span>
+                            </div>
+                            <div class="date-info">
+                                <div class="time">{{.Start.Format "3:04 PM"}} - {{.End.Format "3:04 PM"}}</div>
+                            </div>
+                            <div class="date-actions">
+                                <form hx-post="/admin/accept/{{$eventID}}" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
+                                    <input type="hidden" name="start" value="{{.Start.Format "2006-01-02T15:04"}}">
+                                    <input type="hidden" name="end" value="{{.End.Format "2006-01-02T15:04"}}">
+                                    <button type="submit" class="btn-sm btn-primary">Approve</button>
+                                </form>
+                            </div>
+                        </div>
+                        {{end}}
+                    </div>
                 {{end}}
             </div>
         </div>

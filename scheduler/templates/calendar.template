@@ -46,7 +46,7 @@
                 $day.Day)}}
                 <a href="/event/{{.Event.ID}}" class="event-badge {{.Event.Status}} {{if .IsConflict}}conflict{{end}}">
                     <span class="event-time">{{.Start.Format "3:04 PM"}}</span>
-                    <span class="event-title">{{.Event.ContactName}}</span>
+                    <span class="event-title">{{.Event.Title}}</span>
                 </a>
                 {{end}}
                 {{end}}
@@ -120,7 +120,7 @@
                         style="top: {{.Top}}%; height: {{.Height}}%;">
                         <div class="week-event-content">
                             <span class="time">{{.Start.Format "3:04 PM"}}</span>
-                            <span class="title">{{.Event.ContactName}}</span>
+                            <span class="title">{{.Event.Title}}</span>
                         </div>
                     </a>
                     {{end}}
@@ -145,7 +145,7 @@
                 <span class="month">{{.Start.Month}}</span>
             </div>
             <div class="cal-info">
-                <h4>{{.Event.Description}}</h4>
+                <h4>{{.Event.Title}}</h4>
                 <p>{{.Start.Format "3:04 PM"}} - {{.End.Format "3:04 PM"}}</p>
                 <p class="contact-info">{{.Event.ContactName}}</p>
                 <span class="badge {{.Event.Status}}">{{.Event.Status}}</span>
