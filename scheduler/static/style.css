@@ -209,6 +209,14 @@ body {
     font-weight: 600;
     margin-bottom: 0.5rem;
     font-size: 0.9rem;
+    text-decoration: none;
+    color: inherit;
+    display: inline-block;
+}
+
+.day-number:hover {
+    color: var(--accent-color);
+    text-decoration: underline;
 }
 
 .event-badge {
@@ -356,6 +364,26 @@ body {
     background-color: rgba(239, 68, 68, 0.2);
     border: 2px solid var(--danger-color);
     z-index: 20;
+}
+
+.week-event.highlighted {
+    box-shadow: 0 0 0 2px var(--accent-color), 0 0 10px rgba(59, 130, 246, 0.5);
+    z-index: 30;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0px rgba(59, 130, 246, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 6px rgba(59, 130, 246, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0px rgba(59, 130, 246, 0);
+    }
 }
 
 /* Forms & General */

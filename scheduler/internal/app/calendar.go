@@ -19,6 +19,7 @@ type CalendarViewData struct {
 	WeekEnd     time.Time
 	GridDays    []time.Time // For month view
 	Events      []service.DisplayEvent
+	HighlightID string
 }
 
 func HandleGetCalendar(w http.ResponseWriter, r *http.Request) {
@@ -39,6 +40,10 @@ func HandleGetCalendar(w http.ResponseWriter, r *http.Request) {
 		ViewMode:    view,
 		CurrentDate: currentDate,
 		MonthName:   currentDate.Format("January 2006"),
+	}
+
+	if highlight := r.URL.Query().Get("highlight"); highlight != "" {
+		data.HighlightID = highlight
 	}
 
 	// Calculate ranges and navigation

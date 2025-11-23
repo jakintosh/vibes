@@ -71,7 +71,8 @@
                                 <div class="time">{{.Start.Format "3:04 PM"}} - {{.End.Format "3:04 PM"}}</div>
                             </div>
                             <div class="date-actions">
-                                <form hx-post="/admin/accept/{{$eventID}}" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
+                                <a href="/calendar?view=week&date={{.Start.Format "2006-01-02"}}&highlight={{$eventID}}" class="btn-sm btn-secondary" style="text-decoration: none; display: inline-flex; align-items: center;">View In Calendar</a>
+                                <form hx-post="/admin/accept/{{$eventID}}" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)" style="margin: 0;">
                                     <input type="hidden" name="start" value="{{.Start.Format "2006-01-02T15:04"}}">
                                     <input type="hidden" name="end" value="{{.End.Format "2006-01-02T15:04"}}">
                                     <button type="submit" class="btn-sm btn-primary">Approve</button>

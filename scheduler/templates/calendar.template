@@ -38,7 +38,7 @@
 
         {{range .GridDays}}
         <div class="day-cell {{if eq .Month $.CurrentDate.Month}}current-month{{else}}other-month{{end}}">
-            <span class="day-number">{{.Day}}</span>
+            <a href="/calendar?view=week&date={{.Format "2006-01-02"}}" class="day-number">{{.Day}}</a>
             <div class="day-events">
                 {{$day := .}}
                 {{range $.Events}}
@@ -116,7 +116,7 @@
                     {{range $.Events}}
                     {{if and (eq .DisplayDate.Year $targetDate.Year) (eq .DisplayDate.Month $targetDate.Month) (eq
                     .DisplayDate.Day $targetDate.Day)}}
-                    <a href="/event/{{.Event.ID}}" class="week-event {{.Event.Status}} {{if .IsConflict}}conflict{{end}}"
+                    <a href="/event/{{.Event.ID}}" class="week-event {{.Event.Status}} {{if .IsConflict}}conflict{{end}} {{if eq .Event.ID $.HighlightID}}highlighted{{end}}"
                         style="top: {{.Top}}%; height: {{.Height}}%;">
                         <div class="week-event-content">
                             <span class="time">{{.Start.Format "3:04 PM"}}</span>
@@ -158,4 +158,13 @@
     </div>
     {{end}}
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const highlighted = document.querySelector('.highlighted');
+        if (highlighted) {
+            highlighted.scrollIntoView({block: 'center', behavior: 'smooth'});
+        }
+    });
+</script>
 {{end}}
