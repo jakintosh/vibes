@@ -6,8 +6,7 @@ import (
 	"time"
 
 	db "event-scheduler/internal/db"
-
-	"github.com/google/uuid"
+	"event-scheduler/internal/service"
 )
 
 func HandleGetRequest(w http.ResponseWriter, r *http.Request) {
@@ -24,14 +23,12 @@ func HandlePostRequest(w http.ResponseWriter, r *http.Request) {
 	// Extract data
 	// TODO: robust validation
 	e := db.Event{
-		ID:           uuid.New().String(),
 		Title:        r.FormValue("title"),
 		ContactName:  r.FormValue("name"),
 		ContactPhone: r.FormValue("phone"),
 		ContactEmail: r.FormValue("email"),
 		Description:  r.FormValue("description"),
 		NeedsAV:      r.FormValue("av") == "on",
-		Status:       db.StatusRequested,
 	}
 
 	// Parse dates
@@ -60,7 +57,7 @@ func HandlePostRequest(w http.ResponseWriter, r *http.Request) {
 		e.Dates = append(e.Dates, *d)
 	}
 
-	if err := db.CreateEvent(e); err != nil {
+	if err := service.CreateEvent(e); err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		log.Println(err)
 		return

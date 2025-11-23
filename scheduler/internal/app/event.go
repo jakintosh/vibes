@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	db "event-scheduler/internal/db"
+	"event-scheduler/internal/service"
 )
 
 func HandleGetEvent(w http.ResponseWriter, r *http.Request) {
@@ -15,7 +15,7 @@ func HandleGetEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event, err := db.GetEvent(id)
+	event, err := service.GetEvent(id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.NotFound(w, r)
@@ -39,28 +39,14 @@ func HandlePostEventAccept(w http.ResponseWriter, r *http.Request) {
 	layout := "2006-01-02T15:04"
 	start, _ := time.Parse(layout, r.FormValue("start"))
 	end, _ := time.Parse(layout, r.FormValue("end"))
-	newDate := db.EventDate{Start: start, End: end}
 
-	// Check for conflicts with existing accepted events
-	allEvents, err := db.GetEvents()
+	err := service.AcceptEvent(id, start, end)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-
-	for _, e := range allEvents {
-		if e.Status == db.StatusAccepted && e.AcceptedDate != nil {
-			// Check overlap
-			if start.Before(e.AcceptedDate.End) && end.After(e.AcceptedDate.Start) {
-				http.Error(w, "Conflict detected! Cannot accept this event.", http.StatusConflict)
-				return
-			}
+		if err.Error() == "conflict detected" {
+			http.Error(w, "Conflict detected! Cannot accept this event.", http.StatusConflict)
+		} else {
+			http.Error(w, "Error accepting event", http.StatusInternalServerError)
 		}
-	}
-
-	err = db.AcceptEvent(id, newDate)
-	if err != nil {
-		http.Error(w, "Error accepting event", http.StatusInternalServerError)
 		return
 	}
 
