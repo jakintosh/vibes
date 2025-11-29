@@ -29,9 +29,10 @@ func HandleGetCalendar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dateStr := r.URL.Query().Get("date")
-	currentDate := time.Now()
+	currentDate := time.Now().In(time.Local)
+	currentDate = time.Date(currentDate.Year(), currentDate.Month(), currentDate.Day(), 0, 0, 0, 0, currentDate.Location())
 	if dateStr != "" {
-		if d, err := time.Parse("2006-01-02", dateStr); err == nil {
+		if d, err := time.ParseInLocation("2006-01-02", dateStr, time.Local); err == nil {
 			currentDate = d
 		}
 	}
@@ -54,7 +55,7 @@ func HandleGetCalendar(w http.ResponseWriter, r *http.Request) {
 	case "week":
 		// Start of week (Sunday)
 		weekday := int(currentDate.Weekday())
-		start = currentDate.AddDate(0, 0, -weekday).Truncate(24 * time.Hour)
+		start = currentDate.AddDate(0, 0, -weekday)
 		end = start.AddDate(0, 0, 7)
 		data.WeekStart = start
 		data.WeekEnd = end
