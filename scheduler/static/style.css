@@ -62,7 +62,7 @@ body {
 
 /* Sidebar */
 .sidebar {
-    width: 250px;
+    width: 180px;
     background-color: var(--sidebar-bg);
     border-right: 1px solid var(--border-color);
     display: flex;
@@ -782,14 +782,19 @@ textarea:focus {
     font-size: 0.9rem;
 }
 
+/* Inbox Table Wrapper */
+.events-list {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+
 /* Inbox Table */
 .inbox-table {
     width: 100%;
-    border-collapse: collapse;
-    background-color: var(--card-bg);
-    border-radius: 0.75rem;
-    overflow: hidden;
-    border: 1px solid var(--border-color);
+    border-collapse: separate;
+    border-spacing: 0;
 }
 
 .inbox-table th {
