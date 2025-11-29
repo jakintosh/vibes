@@ -27,32 +27,34 @@
 
     {{if eq .ViewMode "month"}}
     <!-- Month View -->
-    <div class="calendar-month-grid">
-        <div class="day-header">Sun</div>
-        <div class="day-header">Mon</div>
-        <div class="day-header">Tue</div>
-        <div class="day-header">Wed</div>
-        <div class="day-header">Thu</div>
-        <div class="day-header">Fri</div>
-        <div class="day-header">Sat</div>
+    <div class="calendar-month-wrapper">
+        <div class="calendar-month-grid">
+            <div class="day-header">Sun</div>
+            <div class="day-header">Mon</div>
+            <div class="day-header">Tue</div>
+            <div class="day-header">Wed</div>
+            <div class="day-header">Thu</div>
+            <div class="day-header">Fri</div>
+            <div class="day-header">Sat</div>
 
-        {{range .GridDays}}
-        <div class="day-cell {{if eq .Month $.CurrentDate.Month}}current-month{{else}}other-month{{end}}">
-            <a href="/calendar?view=week&date={{.Format "2006-01-02"}}" class="day-number">{{.Day}}</a>
-            <div class="day-events">
-                {{$day := .}}
-                {{range $.Events}}
-                {{if and (eq .DisplayDate.Year $day.Year) (eq .DisplayDate.Month $day.Month) (eq .DisplayDate.Day
-                $day.Day)}}
-                <a href="/event/{{.Event.ID}}" class="event-badge {{.Event.Status}} {{if .IsConflict}}conflict{{end}}">
-                    <span class="event-time">{{.Start.Format "3:04 PM"}}</span>
-                    <span class="event-title">{{.Event.Title}}</span>
-                </a>
-                {{end}}
-                {{end}}
+            {{range .GridDays}}
+            <div class="day-cell {{if eq .Month $.CurrentDate.Month}}current-month{{else}}other-month{{end}}">
+                <a href="/calendar?view=week&date={{.Format "2006-01-02"}}" class="day-number">{{.Day}}</a>
+                <div class="day-events">
+                    {{$day := .}}
+                    {{range $.Events}}
+                    {{if and (eq .DisplayDate.Year $day.Year) (eq .DisplayDate.Month $day.Month) (eq .DisplayDate.Day
+                    $day.Day)}}
+                    <a href="/event/{{.Event.ID}}" class="event-badge {{.Event.Status}} {{if .IsConflict}}conflict{{end}}">
+                        <span class="event-time">{{.Start.Format "3:04 PM"}}</span>
+                        <span class="event-title">{{.Event.Title}}</span>
+                    </a>
+                    {{end}}
+                    {{end}}
+                </div>
             </div>
+            {{end}}
         </div>
-        {{end}}
     </div>
 
     {{else if eq .ViewMode "week"}}
@@ -135,9 +137,9 @@
     <!-- Agenda View (Existing) -->
     <div class="calendar-grid">
         {{range .Events}}
-        <!-- De-duplicate logic needed if we are just dumping segments, but for agenda we might want original events? 
-                 The backend sends 'DisplayEvents' which are segments. 
-                 For Agenda, we probably want to group them or just list them. 
+        <!-- De-duplicate logic needed if we are just dumping segments, but for agenda we might want original events?
+                 The backend sends 'DisplayEvents' which are segments.
+                 For Agenda, we probably want to group them or just list them.
                  Let's just list the segments for now as "Agenda Items". -->
         <a href="/event/{{.Event.ID}}" class="calendar-event {{if eq .Event.Status "Accepted"}}accepted{{else}}requested{{end}} {{if .IsConflict}}conflict{{end}}" style="text-decoration: none; color: inherit; display: flex;">
             <div class="cal-date">
