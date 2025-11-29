@@ -1,8 +1,6 @@
 package main
 
 import (
-	"database/sql"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -10,36 +8,10 @@ import (
 	"os"
 	"time"
 
+	"event-scheduler/internal/db"
+
 	"github.com/google/uuid"
-	_ "modernc.org/sqlite"
 )
-
-// Copy of db types to avoid import cycles or dependency issues if running standalone
-type EventStatus string
-
-const (
-	StatusRequested EventStatus = "Requested"
-	StatusAccepted  EventStatus = "Accepted"
-)
-
-type EventDate struct {
-	Start time.Time `json:"start"`
-	End   time.Time `json:"end"`
-}
-
-type Event struct {
-	ID           string      `json:"id"`
-	Title        string      `json:"title"`
-	ContactName  string      `json:"contact_name"`
-	ContactPhone string      `json:"contact_phone"`
-	ContactEmail string      `json:"contact_email"`
-	Description  string      `json:"description"`
-	NeedsAV      bool        `json:"needs_av"`
-	Dates        []EventDate `json:"dates"`
-	Status       EventStatus `json:"status"`
-	AcceptedDate *EventDate  `json:"accepted_date,omitempty"`
-	CreatedAt    time.Time   `json:"created_at"`
-}
 
 var (
 	dbPath         = flag.String("db", "events.db", "Path to sqlite database")
@@ -50,34 +22,19 @@ var (
 func main() {
 	flag.Parse()
 
-	// Remove existing DB
-	os.Remove(*dbPath)
-
-	db, err := sql.Open("sqlite", *dbPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
-
-	createTableSQL := `CREATE TABLE IF NOT EXISTS events (
-		id TEXT PRIMARY KEY,
-		title TEXT,
-		contact_name TEXT,
-		contact_phone TEXT,
-		contact_email TEXT,
-		description TEXT,
-		needs_av BOOLEAN,
-		dates TEXT,
-		status TEXT,
-		accepted_date TEXT,
-		created_at DATETIME
-	);`
-
-	if _, err := db.Exec(createTableSQL); err != nil {
-		log.Fatal(err)
+	if err := os.Remove(*dbPath); err != nil && !os.IsNotExist(err) {
+		log.Fatalf("failed removing db: %v", err)
 	}
 
-	// Seed Data Configuration
+	if err := db.InitDB(*dbPath); err != nil {
+		log.Fatalf("failed initializing db: %v", err)
+	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("error closing db: %v", err)
+		}
+	}()
+
 	startDate := time.Date(2025, 11, 1, 0, 0, 0, 0, time.Local)
 	endDate := time.Date(2025, 12, 31, 23, 59, 59, 0, time.Local)
 
@@ -110,35 +67,29 @@ func main() {
 	}
 	names := []string{"Alice", "Bob", "Charlie", "Diana", "Evan", "Fiona", "George", "Hannah"}
 
-	// Track accepted intervals to generate conflicts
-	var acceptedIntervals []EventDate
+	var acceptedIntervals []db.EventDate
 
-	for i := 0; i < totalEvents; i++ {
-		// Random date within range
+	for range totalEvents {
 		daysRange := int(endDate.Sub(startDate).Hours() / 24)
 		randomDay := rand.Intn(daysRange)
 		eventStartDay := startDate.AddDate(0, 0, randomDay)
 
-		// Random time (8am to 8pm start)
 		startHour := 8 + rand.Intn(12)
-		startMin := rand.Intn(4) * 15 // 0, 15, 30, 45
+		startMin := rand.Intn(4) * 15
 
 		start := time.Date(eventStartDay.Year(), eventStartDay.Month(), eventStartDay.Day(), startHour, startMin, 0, 0, time.Local)
 
-		// Duration 1-8 hours
 		durationHours := 1 + rand.Intn(8)
 		end := start.Add(time.Duration(durationHours) * time.Hour)
 
-		// Determine Status
 		isAccepted := rand.Float64() < *acceptanceRate
-		status := StatusRequested
+		status := db.StatusRequested
 		if isAccepted {
-			status = StatusAccepted
+			status = db.StatusAccepted
 		}
 
-		// Create Event
 		titleIndex := rand.Intn(len(titles))
-		e := Event{
+		e := db.Event{
 			ID:           uuid.New().String(),
 			Title:        titles[titleIndex],
 			ContactName:  names[rand.Intn(len(names))],
@@ -147,15 +98,10 @@ func main() {
 			Description:  descriptions[titleIndex],
 			NeedsAV:      rand.Intn(2) == 0,
 			Status:       status,
-			CreatedAt:    start.AddDate(0, 0, -1-rand.Intn(30)), // Created 1-30 days before
+			CreatedAt:    start.AddDate(0, 0, -1-rand.Intn(30)),
 		}
 
-		// Dates
-		// If accepted, we have one accepted date.
-		// If requested, we might have conflicts.
-
-		if status == StatusAccepted {
-			// Ensure no overlap with existing accepted events (simple retry logic)
+		if status == db.StatusAccepted {
 			conflict := false
 			for _, interval := range acceptedIntervals {
 				if start.Before(interval.End) && end.After(interval.Start) {
@@ -165,47 +111,29 @@ func main() {
 			}
 
 			if conflict {
-				// Skip this one or try again? Let's just skip to keep it simple
 				continue
 			}
 
-			e.AcceptedDate = &EventDate{Start: start, End: end}
-			e.Dates = []EventDate{{Start: start, End: end}} // Request matches acceptance
+			e.AcceptedDate = &db.EventDate{Start: start, End: end}
+			e.Dates = []db.EventDate{{Start: start, End: end}}
 			acceptedIntervals = append(acceptedIntervals, *e.AcceptedDate)
 		} else {
-			// Requested
-			// 50% chance to conflict with an existing accepted event
 			if len(acceptedIntervals) > 0 && rand.Float64() < 0.5 {
-				// Pick a random accepted event and overlap it
 				target := acceptedIntervals[rand.Intn(len(acceptedIntervals))]
-				// Shift slightly
-				offset := rand.Intn(2) - 1 // -1, 0, 1 hour
+				offset := rand.Intn(2) - 1
 				start = target.Start.Add(time.Duration(offset) * time.Hour)
 				end = start.Add(time.Duration(durationHours) * time.Hour)
 			}
 
-			e.Dates = []EventDate{{Start: start, End: end}}
-			// Add 1-2 alternate dates
+			e.Dates = []db.EventDate{{Start: start, End: end}}
 			if rand.Intn(2) == 0 {
-				altStart := start.AddDate(0, 0, 1+rand.Intn(3)) // 1-3 days later
+				altStart := start.AddDate(0, 0, 1+rand.Intn(3))
 				altEnd := altStart.Add(time.Duration(durationHours) * time.Hour)
-				e.Dates = append(e.Dates, EventDate{Start: altStart, End: altEnd})
+				e.Dates = append(e.Dates, db.EventDate{Start: altStart, End: altEnd})
 			}
 		}
 
-		// Insert
-		datesJSON, _ := json.Marshal(e.Dates)
-		var acceptedDateJSON sql.NullString
-		if e.AcceptedDate != nil {
-			b, _ := json.Marshal(e.AcceptedDate)
-			acceptedDateJSON.String = string(b)
-			acceptedDateJSON.Valid = true
-		}
-
-		_, err := db.Exec(`INSERT INTO events (id, title, contact_name, contact_phone, contact_email, description, needs_av, dates, status, accepted_date, created_at) 
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			e.ID, e.Title, e.ContactName, e.ContactPhone, e.ContactEmail, e.Description, e.NeedsAV, string(datesJSON), e.Status, acceptedDateJSON, e.CreatedAt)
-		if err != nil {
+		if err := db.CreateEvent(e); err != nil {
 			log.Printf("Error inserting event: %v", err)
 		}
 	}

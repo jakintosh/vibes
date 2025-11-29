@@ -71,14 +71,23 @@ func CreateEvent(e Event) error {
 		return err
 	}
 
+	var acceptedDateJSON sql.NullString
+	if e.AcceptedDate != nil {
+		b, err := json.Marshal(e.AcceptedDate)
+		if err != nil {
+			return err
+		}
+		acceptedDateJSON = sql.NullString{String: string(b), Valid: true}
+	}
+
 	// Ensure CreatedAt is set
 	if e.CreatedAt.IsZero() {
 		e.CreatedAt = time.Now()
 	}
 
-	_, err = db.Exec(`INSERT INTO events (id, title, contact_name, contact_phone, contact_email, description, needs_av, dates, status, created_at) 
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		e.ID, e.Title, e.ContactName, e.ContactPhone, e.ContactEmail, e.Description, e.NeedsAV, string(datesJSON), e.Status, e.CreatedAt)
+	_, err = db.Exec(`INSERT INTO events (id, title, contact_name, contact_phone, contact_email, description, needs_av, dates, status, accepted_date, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		e.ID, e.Title, e.ContactName, e.ContactPhone, e.ContactEmail, e.Description, e.NeedsAV, string(datesJSON), e.Status, acceptedDateJSON, e.CreatedAt)
 	return err
 }
 
