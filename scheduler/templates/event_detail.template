@@ -9,7 +9,21 @@
         <div class="card-header">
             <div class="header-content">
                 <h2>{{.Title}}</h2>
-                <span class="badge badge-{{if eq .Status "Accepted"}}success{{else}}warning{{end}}">{{.Status}}</span>
+                <div class="status-actions">
+                    <span class="status-badge {{statusClass .Status}}">{{.Status}}</span>
+                    {{if eq .Status "Accepted"}}
+                    <form hx-post="/event/confirm/{{.ID}}" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
+                        <button type="submit" class="btn-sm btn-primary">Confirm</button>
+                    </form>
+                    <form hx-post="/event/withdraw/{{.ID}}" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
+                        <button type="submit" class="btn-sm btn-danger ghost">Withdraw</button>
+                    </form>
+                    {{else if eq .Status "Confirmed"}}
+                    <form hx-post="/event/cancel/{{.ID}}" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
+                        <button type="submit" class="btn-sm btn-danger">Cancel</button>
+                    </form>
+                    {{end}}
+                </div>
             </div>
             <div class="header-meta">
                 Created on {{.CreatedAt.Format "Jan 02, 2006"}}
@@ -46,19 +60,38 @@
             </div>
 
             <div class="dates-section">
-                <h3>Dates</h3>
-                {{if eq .Status "Accepted"}}
-                    <div class="date-card accepted">
+                <div class="dates-header">
+                    <h3>Dates</h3>
+                    {{if eq .Status "Requested"}}
+                    <form hx-post="/event/deny/{{.ID}}" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
+                        <button type="submit" class="btn-sm btn-danger">Deny Event</button>
+                    </form>
+                    {{end}}
+                </div>
+
+                {{if and (or (eq .Status "Accepted") (eq .Status "Confirmed")) .AcceptedDate}}
+                    <div class="date-card accepted {{if eq .Status "Confirmed"}}confirmed{{end}}">
                         <div class="date-icon">
                             <span class="month">{{.AcceptedDate.Start.Format "Jan"}}</span>
                             <span class="day">{{.AcceptedDate.Start.Format "02"}}</span>
                         </div>
                         <div class="date-info">
                             <div class="time">{{.AcceptedDate.Start.Format "3:04 PM"}} - {{.AcceptedDate.End.Format "3:04 PM"}}</div>
-                            <div class="status">Confirmed</div>
+                            <div class="status">{{.Status}}</div>
                         </div>
                     </div>
-                {{else}}
+                {{else if and (or (eq .Status "Canceled") (eq .Status "Withdrawn")) .AcceptedDate}}
+                    <div class="date-card accepted {{if eq .Status "Canceled"}}canceled{{else}}withdrawn{{end}}">
+                        <div class="date-icon">
+                            <span class="month">{{.AcceptedDate.Start.Format "Jan"}}</span>
+                            <span class="day">{{.AcceptedDate.Start.Format "02"}}</span>
+                        </div>
+                        <div class="date-info">
+                            <div class="time">{{.AcceptedDate.Start.Format "3:04 PM"}} - {{.AcceptedDate.End.Format "3:04 PM"}}</div>
+                            <div class="status">{{.Status}}</div>
+                        </div>
+                    </div>
+                {{else if eq .Status "Requested"}}
                     <div class="requested-dates-list">
                         {{$eventID := .ID}}
                         {{range .Dates}}
@@ -70,17 +103,23 @@
                             <div class="date-info">
                                 <div class="time">{{.Start.Format "3:04 PM"}} - {{.End.Format "3:04 PM"}}</div>
                             </div>
+                            {{if eq $.Status "Requested"}}
                             <div class="date-actions">
                                 <a href="/calendar?view=week&date={{.Start.Format "2006-01-02"}}&highlight={{$eventID}}" class="btn-sm btn-secondary" style="text-decoration: none; display: inline-flex; align-items: center;">View In Calendar</a>
-                                <form hx-post="/admin/accept/{{$eventID}}" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)" style="margin: 0;">
+                                <form hx-post="/event/accept/{{$eventID}}" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)" style="margin: 0;">
                                     <input type="hidden" name="start" value="{{.Start.Format "2006-01-02T15:04"}}">
                                     <input type="hidden" name="end" value="{{.End.Format "2006-01-02T15:04"}}">
                                     <button type="submit" class="btn-sm btn-primary">Approve</button>
                                 </form>
                             </div>
+                            {{end}}
                         </div>
                         {{end}}
                     </div>
+                {{else if eq .Status "Denied"}}
+                    <div class="info-note muted">This request has been denied.</div>
+                {{else}}
+                    <div class="info-note muted">No scheduled date selected for this event.</div>
                 {{end}}
             </div>
         </div>
@@ -124,6 +163,43 @@
         justify-content: space-between;
         align-items: center;
         margin-bottom: 2rem;
+    }
+
+    .status-actions {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .status-actions form {
+        margin: 0;
+    }
+
+    .ghost {
+        background: transparent;
+        color: var(--danger-color);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .ghost:hover {
+        background-color: rgba(239, 68, 68, 0.08);
+    }
+
+    .dates-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .info-note {
+        padding: 1rem;
+        border: 1px dashed var(--border-color);
+        border-radius: 0.5rem;
+    }
+
+    .info-note.muted {
+        color: var(--text-secondary);
     }
 </style>
 {{end}}

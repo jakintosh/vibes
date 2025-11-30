@@ -2,6 +2,7 @@ package app
 
 import (
 	"database/sql"
+	"errors"
 	"net/http"
 	"time"
 
@@ -42,8 +43,10 @@ func HandlePostEventAccept(w http.ResponseWriter, r *http.Request) {
 
 	err := service.AcceptEvent(id, start, end)
 	if err != nil {
-		if err.Error() == "conflict detected" {
+		if errors.Is(err, service.ErrConflict) {
 			http.Error(w, "Conflict detected! Cannot accept this event.", http.StatusConflict)
+		} else if errors.Is(err, service.ErrInvalidStatusTransition) {
+			http.Error(w, "Invalid event status for accepting", http.StatusBadRequest)
 		} else {
 			http.Error(w, "Error accepting event", http.StatusInternalServerError)
 		}
@@ -52,4 +55,56 @@ func HandlePostEventAccept(w http.ResponseWriter, r *http.Request) {
 
 	// Return updated row or list
 	w.Header().Set("HX-Refresh", "true") // Simple refresh for now
+}
+
+func HandlePostEventConfirm(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if err := service.ConfirmEvent(id); err != nil {
+		if errors.Is(err, service.ErrInvalidStatusTransition) {
+			http.Error(w, "Invalid event status for confirming", http.StatusBadRequest)
+			return
+		}
+		http.Error(w, "Error confirming event", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("HX-Refresh", "true")
+}
+
+func HandlePostEventWithdraw(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if err := service.WithdrawEvent(id); err != nil {
+		if errors.Is(err, service.ErrInvalidStatusTransition) {
+			http.Error(w, "Invalid event status for withdrawing", http.StatusBadRequest)
+			return
+		}
+		http.Error(w, "Error withdrawing event", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("HX-Refresh", "true")
+}
+
+func HandlePostEventDeny(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if err := service.DenyEvent(id); err != nil {
+		if errors.Is(err, service.ErrInvalidStatusTransition) {
+			http.Error(w, "Invalid event status for denying", http.StatusBadRequest)
+			return
+		}
+		http.Error(w, "Error denying event", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("HX-Refresh", "true")
+}
+
+func HandlePostEventCancel(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if err := service.CancelEvent(id); err != nil {
+		if errors.Is(err, service.ErrInvalidStatusTransition) {
+			http.Error(w, "Invalid event status for canceling", http.StatusBadRequest)
+			return
+		}
+		http.Error(w, "Error canceling event", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("HX-Refresh", "true")
 }

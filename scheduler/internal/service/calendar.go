@@ -18,7 +18,7 @@ func GetCalendarEvents(start, end time.Time) ([]DisplayEvent, error) {
 	// 1. Identify Accepted Events for Conflict Checking
 	var acceptedEvents []db.EventDate
 	for _, e := range allEvents {
-		if e.Status == db.StatusAccepted && e.AcceptedDate != nil {
+		if isScheduledStatus(e.Status) && e.AcceptedDate != nil {
 			acceptedEvents = append(acceptedEvents, *e.AcceptedDate)
 		}
 	}
@@ -26,10 +26,12 @@ func GetCalendarEvents(start, end time.Time) ([]DisplayEvent, error) {
 	for _, e := range allEvents {
 		// Determine which dates to process
 		var datesToCheck []db.EventDate
-		if e.Status == db.StatusAccepted && e.AcceptedDate != nil {
+		if isScheduledStatus(e.Status) && e.AcceptedDate != nil {
 			datesToCheck = append(datesToCheck, *e.AcceptedDate)
 		} else if e.Status == db.StatusRequested {
 			datesToCheck = e.Dates
+		} else {
+			continue
 		}
 
 		for _, d := range datesToCheck {

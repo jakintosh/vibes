@@ -22,6 +22,10 @@ func BuildRouter() *http.ServeMux {
 	mux.HandleFunc("POST /request", HandlePostRequest)
 	mux.HandleFunc("GET /admin", HandleGetAdmin)
 	mux.HandleFunc("POST /event/accept/{id}", HandlePostEventAccept)
+	mux.HandleFunc("POST /event/deny/{id}", HandlePostEventDeny)
+	mux.HandleFunc("POST /event/confirm/{id}", HandlePostEventConfirm)
+	mux.HandleFunc("POST /event/withdraw/{id}", HandlePostEventWithdraw)
+	mux.HandleFunc("POST /event/cancel/{id}", HandlePostEventCancel)
 	mux.HandleFunc("GET /event/{id}", HandleGetEvent)
 
 	return mux

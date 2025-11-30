@@ -16,7 +16,7 @@ func GetAdminDashboardData(sortMode string) (inbox []AdminEventData, upcoming []
 	// Identify Accepted Events for conflict checking
 	var acceptedEvents []db.EventDate
 	for _, e := range events {
-		if e.Status == db.StatusAccepted && e.AcceptedDate != nil {
+		if isScheduledStatus(e.Status) && e.AcceptedDate != nil {
 			acceptedEvents = append(acceptedEvents, *e.AcceptedDate)
 		}
 	}
@@ -40,7 +40,7 @@ func GetAdminDashboardData(sortMode string) (inbox []AdminEventData, upcoming []
 				}
 			}
 			inbox = append(inbox, data)
-		} else if e.Status == db.StatusAccepted && e.AcceptedDate != nil {
+		} else if isScheduledStatus(e.Status) && e.AcceptedDate != nil {
 			// Only show future events in Upcoming
 			if e.AcceptedDate.Start.After(now) {
 				upcoming = append(upcoming, data)

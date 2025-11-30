@@ -45,9 +45,9 @@
                     {{range $.Events}}
                     {{if and (eq .DisplayDate.Year $day.Year) (eq .DisplayDate.Month $day.Month) (eq .DisplayDate.Day
                     $day.Day)}}
-                    <a href="/event/{{.Event.ID}}" class="event-badge {{.Event.Status}} {{if .IsConflict}}conflict{{end}}">
-                        <span class="event-time">{{.Start.Format "3:04 PM"}}</span>
-                        <span class="event-title">{{.Event.Title}}</span>
+                    <a href="/event/{{.Event.ID}}" class="month-event {{statusClass .Event.Status}} {{if .IsConflict}}conflict{{end}}">
+                        <span class="month-time">{{.Start.Format "3:04 PM"}}</span>
+                        <span class="month-title">{{.Event.Title}}</span>
                     </a>
                     {{end}}
                     {{end}}
@@ -118,7 +118,7 @@
                     {{range $.Events}}
                     {{if and (eq .DisplayDate.Year $targetDate.Year) (eq .DisplayDate.Month $targetDate.Month) (eq
                     .DisplayDate.Day $targetDate.Day)}}
-                    <a href="/event/{{.Event.ID}}" class="week-event {{.Event.Status}} {{if .IsConflict}}conflict{{end}} {{if eq .Event.ID $.HighlightID}}highlighted{{end}}"
+                    <a href="/event/{{.Event.ID}}" class="week-event {{statusClass .Event.Status}} {{if .IsConflict}}conflict{{end}} {{if eq .Event.ID $.HighlightID}}highlighted{{end}}"
                         style="top: {{.Top}}%; height: {{.Height}}%;">
                         <div class="week-event-content">
                             <span class="time">{{.Start.Format "3:04 PM"}}</span>
@@ -141,7 +141,7 @@
                  The backend sends 'DisplayEvents' which are segments.
                  For Agenda, we probably want to group them or just list them.
                  Let's just list the segments for now as "Agenda Items". -->
-        <a href="/event/{{.Event.ID}}" class="calendar-event {{if eq .Event.Status "Accepted"}}accepted{{else}}requested{{end}} {{if .IsConflict}}conflict{{end}}" style="text-decoration: none; color: inherit; display: flex;">
+        <a href="/event/{{.Event.ID}}" class="agenda-event {{statusClass .Event.Status}} {{if .IsConflict}}conflict{{end}}" style="text-decoration: none; color: inherit; display: flex;">
             <div class="cal-date">
                 <span class="day">{{.Start.Day}}</span>
                 <span class="month">{{.Start.Month}}</span>
@@ -150,8 +150,8 @@
                 <h4>{{.Event.Title}}</h4>
                 <p>{{.Start.Format "3:04 PM"}} - {{.End.Format "3:04 PM"}}</p>
                 <p class="contact-info">{{.Event.ContactName}}</p>
-                <span class="badge {{.Event.Status}}">{{.Event.Status}}</span>
-                {{if .IsConflict}}<span class="badge conflict">Conflict</span>{{end}}
+                <span class="status-badge {{statusClass .Event.Status}}">{{.Event.Status}}</span>
+                {{if .IsConflict}}<span class="status-badge conflict">Conflict</span>{{end}}
             </div>
         </a>
         {{else}}

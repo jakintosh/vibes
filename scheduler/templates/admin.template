@@ -81,6 +81,7 @@
                 <div class="upcoming-info">
                     <div class="upcoming-title">{{.Title}}</div>
                     <div class="upcoming-contact">{{.ContactName}}</div>
+                    <span class="status-badge {{statusClass .Status}}">{{.Status}}</span>
                 </div>
                 <div class="upcoming-action">
                     <a href="/event/{{.ID}}" class="btn-sm btn-secondary">Details</a>

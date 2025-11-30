@@ -3,8 +3,11 @@ package app
 import (
 	"log"
 	"net/http"
+	"strings"
 	"text/template"
 	"time"
+
+	db "event-scheduler/internal/db"
 )
 
 func render(w http.ResponseWriter, r *http.Request, tmplName string, data any) {
@@ -29,6 +32,9 @@ func render(w http.ResponseWriter, r *http.Request, tmplName string, data any) {
 		},
 		"formatDate": func(t time.Time, layout string) string {
 			return t.Format(layout)
+		},
+		"statusClass": func(status db.EventStatus) string {
+			return strings.ToLower(string(status))
 		},
 	}
 

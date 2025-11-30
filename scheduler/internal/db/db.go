@@ -13,6 +13,10 @@ type EventStatus string
 const (
 	StatusRequested EventStatus = "Requested"
 	StatusAccepted  EventStatus = "Accepted"
+	StatusConfirmed EventStatus = "Confirmed"
+	StatusWithdrawn EventStatus = "Withdrawn"
+	StatusDenied    EventStatus = "Denied"
+	StatusCanceled  EventStatus = "Canceled"
 )
 
 type EventDate struct {
@@ -168,5 +172,10 @@ func AcceptEvent(id string, date EventDate) error {
 		return err
 	}
 	_, err = db.Exec("UPDATE events SET status = ?, accepted_date = ? WHERE id = ?", StatusAccepted, string(dateJSON), id)
+	return err
+}
+
+func UpdateEventStatus(id string, status EventStatus) error {
+	_, err := db.Exec("UPDATE events SET status = ? WHERE id = ?", status, id)
 	return err
 }
