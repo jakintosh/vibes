@@ -1,0 +1,107 @@
+{{define "content"}}
+<div class="page-container fade-in">
+    <header class="page-header">
+        <h1>Admin Dashboard</h1>
+        <p>Manage event requests and view upcoming schedule.</p>
+    </header>
+
+    <section class="admin-section">
+        <div class="section-header">
+            <h2>Inbox <span class="badge">{{len .InboxEvents}}</span></h2>
+            <div class="sort-controls">
+                <span>Sort by:</span>
+                <a href="/admin?sort=longest_waiting" class="btn-sm {{if eq .SortMode "longest_waiting"}}btn-primary{{else}}btn-secondary{{end}}">Longest Waiting</a>
+                <a href="/admin?sort=soonest" class="btn-sm {{if eq .SortMode "soonest"}}btn-primary{{else}}btn-secondary{{end}}">Soonest</a>
+            </div>
+        </div>
+
+        <div class="events-list">
+            <table class="inbox-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Contact</th>
+                        <th>Requested Dates</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+            {{range .InboxEvents}}
+                <tr class="inbox-row">
+                    <td>
+                        <div class="inbox-title">{{.Title}}</div>
+                        <div class="inbox-meta">Created: {{.CreatedAt.Format "Jan 02"}}</div>
+                    </td>
+                    <td>
+                        <div class="inbox-contact">{{.ContactName}}</div>
+                        <div class="inbox-meta">{{.ContactEmail}}</div>
+                    </td>
+                    <td>
+                        <div class="inbox-dates">
+                            {{$conflicts := .DateConflicts}}
+                            {{range $i, $d := .Dates}}
+                            <div class="inbox-date-row">
+                                <span>{{.Start.Format "Jan 02, 3:04 PM"}}</span>
+                                {{if index $conflicts $i}}
+                                <span class="status-badge conflict">Conflict</span>
+                                {{else}}
+                                <span class="status-badge available">Available</span>
+                                {{end}}
+                            </div>
+                            {{end}}
+                        </div>
+                    </td>
+                    <td>
+                        <a href="/event/{{.ID}}" class="btn-sm btn-secondary">Details</a>
+                    </td>
+                </tr>
+            {{else}}
+                <tr>
+                    <td colspan="4" class="no-events">No pending requests.</td>
+                </tr>
+            {{end}}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="admin-section" style="margin-top: 40px;">
+        <div class="section-header">
+            <h2>Upcoming Events <span class="badge">{{len .UpcomingEvents}}</span></h2>
+        </div>
+
+        <div class="upcoming-list">
+            {{range .UpcomingEvents}}
+            <div class="upcoming-card">
+                <div class="calendar-icon">
+                    <div class="cal-month">{{.AcceptedDate.Start.Format "Jan"}}</div>
+                    <div class="cal-day">{{.AcceptedDate.Start.Format "02"}}</div>
+                    <div class="cal-time">{{.AcceptedDate.Start.Format "3:04 PM"}}</div>
+                </div>
+                <div class="upcoming-info">
+                    <div class="upcoming-title-row">
+                        <div>
+                            <div class="upcoming-title">{{.Title}}</div>
+                            <div class="upcoming-contact">{{.ContactName}}</div>
+                        </div>
+                        <div class="upcoming-badges">
+                            <span class="status-badge {{statusClass .Status}}">{{.Status}}</span>
+                            <span class="status-badge payment {{paymentClass .PaymentStatus}}">{{.PaymentStatus}}</span>
+                        </div>
+                    </div>
+                    <div class="payment-line">
+                        <div class="balance">{{money .AmountReceived}} / {{money .ProposedCost}}</div>
+                        {{if gt .DepositAmount 0.0}}<span class="pill">Deposit {{money .DepositAmount}}</span>{{end}}
+                    </div>
+                </div>
+                <div class="upcoming-action">
+                    <a href="/event/{{.ID}}" class="btn-sm btn-secondary">Details</a>
+                </div>
+            </div>
+            {{else}}
+            <p class="no-events">No upcoming events.</p>
+            {{end}}
+        </div>
+    </section>
+</div>
+{{end}}

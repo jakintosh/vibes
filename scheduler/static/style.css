@@ -1,0 +1,1522 @@
+:root {
+    /* Palette */
+    --palette-blue: #3b82f6;
+    --palette-blue-tint: rgba(59, 130, 246, 0.18);
+    --palette-green: #10b981;
+    --palette-green-tint: rgba(16, 185, 129, 0.18);
+    --palette-red: #ef4444;
+    --palette-red-tint: rgba(239, 68, 68, 0.18);
+    --palette-orange: #f59e0b;
+    --palette-orange-tint: rgba(245, 158, 11, 0.18);
+    --palette-purple: #a855f7;
+    --palette-purple-tint: rgba(168, 85, 247, 0.18);
+    --palette-gray: #94a3b8;
+    --palette-gray-tint: rgba(148, 163, 184, 0.18);
+
+    /* Base UI */
+    --bg-color: #0f172a;
+    --sidebar-bg: #1e293b;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --accent-color: var(--palette-blue);
+    --accent-hover: #2563eb;
+    --success-color: var(--palette-green);
+    --danger-color: var(--palette-red);
+    --warning-color: var(--palette-orange);
+    --solid-text-color: #ffffff;
+    --border-color: #334155;
+    --card-bg: #1e293b;
+    --input-bg: #0f172a;
+
+    /* Semantic status tokens */
+    --status-pending-color: var(--palette-gray);
+    --status-pending-bg: var(--palette-gray-tint);
+    --status-ready-color: var(--palette-blue);
+    --status-ready-bg: var(--palette-blue-tint);
+    --status-confirmed-color: var(--palette-green);
+    --status-confirmed-bg: var(--palette-green-tint);
+    --status-error-color: var(--palette-red);
+    --status-error-bg: var(--palette-red-tint);
+    --status-attention-color: var(--palette-orange);
+    --status-attention-bg: var(--palette-orange-tint);
+    --status-done-color: var(--palette-purple);
+    --status-done-bg: var(--palette-purple-tint);
+
+    /* Mappings for legacy state names */
+    --requested-color: var(--status-pending-color);
+    --requested-bg-color: var(--status-pending-bg);
+    --accepted-color: var(--status-ready-color);
+    --accepted-bg-color: var(--status-ready-bg);
+    --confirmed-color: var(--status-confirmed-color);
+    --confirmed-bg-color: var(--status-confirmed-bg);
+    --withdrawn-color: var(--status-error-color);
+    --withdrawn-bg-color: var(--status-error-bg);
+    --canceled-color: var(--status-error-color);
+    --canceled-bg-color: var(--status-error-bg);
+
+    /* Payment mappings */
+    --payment-proposed-bg-color: var(--status-pending-bg);
+    --payment-proposed-color: var(--status-pending-color);
+    --payment-due-bg-color: var(--status-attention-bg);
+    --payment-due-color: var(--status-attention-color);
+    --payment-paid-bg-color: var(--status-confirmed-bg);
+    --payment-paid-color: var(--status-confirmed-color);
+    --payment-refundable-bg-color: var(--status-attention-bg);
+    --payment-refundable-color: var(--status-attention-color);
+    --payment-settled-bg-color: var(--status-done-bg);
+    --payment-settled-color: var(--status-done-color);
+}
+
+/* Scrollbar Styles */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-color);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 5px;
+    border: 2px solid var(--bg-color);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+.light-mode {
+    --bg-color: #f8fafc;
+    --sidebar-bg: #ffffff;
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+    --accent-color: var(--palette-blue);
+    --accent-hover: #2563eb;
+    --success-color: var(--palette-green);
+    --danger-color: var(--palette-red);
+    --warning-color: var(--palette-orange);
+    --solid-text-color: #0f172a;
+    --border-color: #e2e8f0;
+    --card-bg: #ffffff;
+    --input-bg: #f1f5f9;
+
+    --status-pending-color: #475569;
+    --status-pending-bg: #e2e8f0;
+    --status-ready-color: var(--palette-blue);
+    --status-ready-bg: #dce8ff;
+    --status-confirmed-color: #15803d;
+    --status-confirmed-bg: #d1fae5;
+    --status-error-color: var(--palette-red);
+    --status-error-bg: #fee2e2;
+    --status-attention-color: #b45309;
+    --status-attention-bg: #fef3c7;
+    --status-done-color: #7c3aed;
+    --status-done-bg: #ede9fe;
+
+    --requested-color: var(--status-pending-color);
+    --requested-bg-color: var(--status-pending-bg);
+    --accepted-color: var(--status-ready-color);
+    --accepted-bg-color: var(--status-ready-bg);
+    --confirmed-color: var(--status-confirmed-color);
+    --confirmed-bg-color: var(--status-confirmed-bg);
+    --withdrawn-color: var(--status-error-color);
+    --withdrawn-bg-color: var(--status-error-bg);
+    --canceled-color: var(--status-error-color);
+    --canceled-bg-color: var(--status-error-bg);
+
+    --payment-proposed-bg-color: var(--status-pending-bg);
+    --payment-proposed-color: var(--status-pending-color);
+    --payment-due-bg-color: var(--status-attention-bg);
+    --payment-due-color: var(--status-attention-color);
+    --payment-paid-bg-color: var(--status-confirmed-bg);
+    --payment-paid-color: var(--status-confirmed-color);
+    --payment-refundable-bg-color: var(--status-attention-bg);
+    --payment-refundable-color: var(--status-attention-color);
+    --payment-settled-bg-color: var(--status-done-bg);
+    --payment-settled-color: var(--status-done-color);
+}
+
+body {
+    margin: 0;
+    font-family: "Inter", sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    height: 100vh;
+    overflow: hidden;
+}
+
+.app-container {
+    display: flex;
+    height: 100%;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 180px;
+    background-color: var(--sidebar-bg);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+}
+
+.logo h2 {
+    margin: 0 0 2rem 0;
+    color: var(--accent-color);
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+.nav-link {
+    display: block;
+    padding: 0.75rem 1rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-radius: 0.5rem;
+    margin-bottom: 0.5rem;
+    transition: all 0.2s;
+}
+
+.nav-link:hover,
+.nav-link.active {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: var(--accent-color);
+}
+
+/* Content Area */
+.content-area {
+    flex: 1;
+    padding: 2rem;
+    overflow-y: auto;
+}
+
+.page-container {
+    max-width: 1200px;
+    /* Wider for calendar */
+    margin: 0 auto;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.page-header {
+    margin-bottom: 2rem;
+}
+
+.page-header h1 {
+    font-size: 2rem;
+    margin: 0 0 0.5rem 0;
+}
+
+.page-header p {
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* Calendar Header */
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.calendar-controls {
+    display: flex;
+    gap: 1rem;
+}
+
+.btn-group {
+    display: flex;
+    gap: 0.25rem;
+    background: var(--card-bg);
+    padding: 0.25rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+}
+
+.btn-secondary.active {
+    background: var(--accent-color);
+    color: white;
+}
+
+/* Month View */
+.calendar-month-wrapper {
+    overflow-x: auto;
+    overflow-y: hidden;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+}
+
+.calendar-month-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 1px;
+    background-color: var(--border-color);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    min-width: 1200px;
+    max-width: 1600px;
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.day-header {
+    background-color: var(--card-bg);
+    padding: 0.75rem;
+    text-align: center;
+    font-weight: 600;
+    color: var(--text-secondary);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.day-cell {
+    background-color: var(--bg-color);
+    min-height: 120px;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.day-cell.other-month {
+    background-color: rgba(30, 41, 59, 0.5);
+    opacity: 0.5;
+}
+
+.day-number {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    text-decoration: none;
+    color: inherit;
+    display: inline-block;
+}
+
+.day-number:hover {
+    color: var(--accent-color);
+    text-decoration: underline;
+}
+
+.month-event {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    margin-bottom: 0.25rem;
+    display: grid;
+    grid-template-columns: 8ch 1fr;
+    column-gap: 0.75rem;
+    align-items: center;
+    min-width: 0;
+}
+
+.month-time {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.month-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.month-event.requested {
+    background-color: var(--requested-bg-color);
+    color: var(--requested-color);
+    border: 1px dashed var(--requested-color);
+}
+
+.month-event.conflict,
+.month-event.requested.conflict {
+    background-color: var(--canceled-bg-color);
+    border: 1px dashed var(--canceled-color);
+    color: var(--canceled-color);
+}
+
+.month-event.accepted {
+    background-color: var(--accepted-color);
+    border: 1px solid var(--accepted-color);
+    color: var(--solid-text-color);
+}
+
+.month-event.confirmed {
+    background-color: var(--confirmed-color);
+    border: 1px solid var(--confirmed-color);
+    color: var(--solid-text-color);
+}
+
+.month-event.withdrawn {
+    background-color: var(--withdrawn-color);
+    border: 1px solid var(--withdrawn-color);
+    color: var(--solid-text-color);
+}
+
+.month-event.canceled,
+.month-event.denied {
+    background-color: var(--canceled-color);
+    border: 1px solid var(--canceled-color);
+    color: var(--solid-text-color);
+}
+
+/* Week View */
+.calendar-week-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    /* Fill parent */
+    min-height: 0;
+    /* Allow shrinking for flex child */
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background-color: var(--bg-color);
+    overflow: hidden;
+    /* Contain children */
+}
+
+.week-scroll-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.week-header {
+    display: grid;
+    grid-template-columns: 60px repeat(7, 1fr);
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+
+.week-day-col-header {
+    padding: 1rem;
+    text-align: center;
+    font-weight: 600;
+    border-left: 1px solid var(--border-color);
+}
+
+.week-body {
+    display: grid;
+    grid-template-columns: 60px repeat(7, 1fr);
+    /* overflow-y: auto; Removed, handled by wrapper */
+}
+
+.time-axis {
+    display: grid;
+    grid-template-rows: repeat(24, 60px);
+    /* 60px per hour */
+}
+
+.time-slot {
+    border-bottom: 1px solid var(--border-color);
+    text-align: right;
+    padding-right: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    /* transform: translateY(-10px); Removed to fix alignment */
+    display: flex;
+    align-items: start;
+    /* Align to top line */
+    justify-content: flex-end;
+}
+
+.time-slot span {
+    transform: translateY(-50%);
+    /* Center on line */
+    background: var(--bg-color);
+    /* Optional: mask line behind text if needed */
+}
+
+.week-day-col {
+    position: relative;
+    border-left: 1px solid var(--border-color);
+    display: grid;
+    grid-template-rows: repeat(24, 60px);
+}
+
+.day-time-slot {
+    border-bottom: 1px solid var(--border-color);
+    box-sizing: border-box;
+    /* Ensure border is inside 60px */
+}
+
+.week-event {
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    border-radius: 0.35rem;
+    padding: 0.35rem;
+    font-size: 0.75rem;
+    overflow: hidden;
+    z-index: 10;
+}
+
+.week-event.requested {
+    background-color: var(--requested-bg-color);
+    color: var(--requested-color);
+    border: 1px dashed var(--requested-color);
+}
+
+.week-event.conflict {
+    background-color: var(--canceled-bg-color);
+    border: 2px dashed var(--canceled-color);
+    color: var(--canceled-color);
+    z-index: 20;
+}
+
+.week-event.accepted {
+    background-color: var(--accepted-color);
+    color: var(--solid-text-color);
+    border: 1px solid var(--accepted-color);
+}
+
+.week-event.confirmed {
+    background-color: var(--confirmed-color);
+    color: var(--solid-text-color);
+    border: 1px solid var(--confirmed-color);
+}
+
+.week-event.withdrawn {
+    background-color: var(--withdrawn-color);
+    color: var(--solid-text-color);
+    border: 1px solid var(--withdrawn-color);
+}
+
+.week-event.canceled,
+.week-event.denied {
+    background-color: var(--canceled-color);
+    color: var(--solid-text-color);
+    border: 1px solid var(--canceled-color);
+}
+
+.week-event.highlighted {
+    box-shadow:
+        0 0 0 2px var(--accent-color),
+        0 0 10px rgba(59, 130, 246, 0.5);
+    z-index: 30;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0px rgba(59, 130, 246, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 6px rgba(59, 130, 246, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0px rgba(59, 130, 246, 0);
+    }
+}
+
+/* Forms & General */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+input,
+textarea {
+    width: 100%;
+    padding: 0.75rem;
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    color: var(--text-primary);
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+input:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.btn-primary {
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+
+.btn-primary:hover {
+    background-color: var(--accent-hover);
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+
+.btn-danger:hover {
+    background-color: #dc2626;
+}
+
+/* Cards (Agenda/Admin) */
+.event-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.event-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-width: 1px;
+    border-style: solid;
+}
+
+.status-badge.requested {
+    background-color: var(--requested-bg-color);
+    border-color: var(--requested-color);
+    color: var(--requested-color);
+}
+
+.status-badge.accepted {
+    background-color: var(--accepted-bg-color);
+    border-color: var(--accepted-color);
+    color: var(--accepted-color);
+}
+
+.status-badge.confirmed {
+    background-color: var(--confirmed-bg-color);
+    border-color: var(--confirmed-color);
+    color: var(--confirmed-color);
+}
+
+.status-badge.withdrawn {
+    background-color: var(--withdrawn-bg-color);
+    border-color: var(--withdrawn-color);
+    color: var(--withdrawn-color);
+}
+
+.status-badge.canceled,
+.status-badge.denied {
+    background-color: var(--canceled-bg-color);
+    border-color: var(--canceled-color);
+    color: var(--canceled-color);
+}
+
+.status-badge.available {
+    background-color: rgba(16, 185, 129, 0.2);
+    color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.status-badge.conflict {
+    background-color: var(--status-error-bg);
+    color: var(--status-error-color);
+    border-color: var(--status-error-color);
+}
+
+.status-badge.payment {
+    border-width: 1px;
+    border-style: solid;
+}
+
+.status-badge.payment-proposed {
+    background: var(--payment-proposed-bg-color);
+    color: var(--payment-proposed-color);
+    border-color: var(--payment-proposed-color);
+}
+
+.status-badge.payment-due {
+    background: var(--payment-due-bg-color);
+    color: var(--payment-due-color);
+    border-color: var(--payment-due-color);
+}
+
+.status-badge.payment-paid {
+    background: var(--payment-paid-bg-color);
+    color: var(--payment-paid-color);
+    border-color: var(--payment-paid-color);
+}
+
+.status-badge.payment-refundable {
+    background: var(--payment-refundable-bg-color);
+    color: var(--payment-refundable-color);
+    border-color: var(--payment-refundable-color);
+}
+
+.status-badge.payment-settled {
+    background: var(--payment-settled-bg-color);
+    color: var(--payment-settled-color);
+    border-color: var(--payment-settled-color);
+}
+
+.date-options {
+    margin-top: 1rem;
+}
+
+.date-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    background-color: var(--input-bg);
+    margin-bottom: 0.5rem;
+    border-radius: 0.5rem;
+}
+
+.btn-sm {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+    border-radius: 0.4rem;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-accept {
+    background-color: var(--success-color);
+    color: white;
+}
+
+/* Animations */
+.fade-in {
+    animation: fadeIn 0.15s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Agenda Grid (Existing) */
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.agenda-event {
+    background-color: var(--card-bg);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.agenda-event.requested {
+    border: 1px dashed var(--requested-color);
+    border-left: 4px dashed var(--requested-color);
+    background-color: var(--requested-bg-color);
+    color: var(--requested-color);
+}
+
+.agenda-event.accepted {
+    border: 1px solid var(--accepted-color);
+    border-left: 4px solid var(--accepted-color);
+    background-color: var(--accepted-color);
+    color: var(--solid-text-color);
+}
+
+.agenda-event.confirmed {
+    border: 1px solid var(--confirmed-color);
+    border-left: 4px solid var(--confirmed-color);
+    background-color: var(--confirmed-color);
+    color: var(--solid-text-color);
+}
+
+.agenda-event.withdrawn {
+    border: 1px solid var(--withdrawn-color);
+    border-left: 4px solid var(--withdrawn-color);
+    background-color: var(--withdrawn-color);
+    color: var(--solid-text-color);
+}
+
+.agenda-event.canceled {
+    border: 1px solid var(--canceled-color);
+    border-left: 4px solid var(--canceled-color);
+    background-color: var(--canceled-color);
+    color: var(--solid-text-color);
+}
+
+.agenda-event.requested.conflict {
+    border: 1px dashed var(--canceled-color);
+    border-left: 4px dashed var(--canceled-color);
+    background-color: var(--canceled-bg-color);
+    color: var(--canceled-color);
+}
+
+.cal-date {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: var(--input-bg);
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    min-width: 50px;
+}
+
+.cal-date .day {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.cal-date .month {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.cal-info h4 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1rem;
+}
+
+.cal-info p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* Theme Toggle */
+.theme-toggle {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: auto;
+    /* Push to bottom of sidebar if flex column */
+    transition: all 0.2s;
+}
+
+.theme-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+}
+
+.light-mode .theme-toggle:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Request Form Overhaul */
+.request-form {
+    max-width: 800px;
+    /* Constrain width for readability */
+}
+
+.form-section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--accent-color);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.dates-section {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.date-row-container {
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    position: relative;
+    transition: all 0.2s;
+}
+
+.date-row-container:hover {
+    border-color: var(--text-secondary);
+}
+
+.date-row-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.date-inputs-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 1rem;
+    align-items: start;
+}
+
+.datetime-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.datetime-group input[type="date"] {
+    flex: 2;
+}
+
+.datetime-group input[type="time"] {
+    flex: 1;
+}
+
+.date-separator {
+    padding-top: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-outline:hover {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+    background-color: rgba(59, 130, 246, 0.05);
+}
+
+.btn-danger-text {
+    background: transparent;
+    border: none;
+    color: var(--danger-color);
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+.btn-danger-text:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .date-inputs-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .date-separator {
+        text-align: center;
+        padding: 0;
+    }
+}
+
+/* Admin Page Overhaul */
+.admin-section {
+    margin-bottom: 2rem;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.section-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.badge {
+    background-color: var(--accent-color);
+    color: white;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 1rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.sort-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.sort-controls span {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+/* Inbox Table Wrapper */
+.events-list {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+
+/* Inbox Table */
+.inbox-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.inbox-table th {
+    text-align: left;
+    padding: 1rem;
+    background-color: rgba(255, 255, 255, 0.03);
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.inbox-table td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: top;
+}
+
+.inbox-table tr:last-child td {
+    border-bottom: none;
+}
+
+.inbox-row:hover {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+.inbox-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.inbox-contact {
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.inbox-meta {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.inbox-dates {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.inbox-date-row {
+    display: grid;
+    grid-template-columns: 16ch 10ch;
+    column-gap: 0.75rem;
+    align-items: center;
+    font-size: 0.9rem;
+}
+
+.inbox-date-row span:first-child {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.inbox-date-row span:nth-child(2) {
+    text-align: center;
+}
+
+/* Upcoming Events List */
+.upcoming-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.upcoming-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.calendar-icon {
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 60px;
+}
+
+.cal-month {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--danger-color);
+    font-weight: 700;
+    line-height: 1;
+}
+
+.cal-day {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.cal-time {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+    white-space: nowrap;
+}
+
+.upcoming-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.upcoming-title-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.upcoming-title {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.upcoming-contact {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.upcoming-badges {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.payment-line {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-top: 0.5rem;
+    color: var(--text-secondary);
+    flex-wrap: wrap;
+}
+
+.payment-line .balance {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.16);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+/* Event Detail Refinements */
+.header-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.toolbar-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.toolbar-title h2 {
+    margin: 0;
+}
+
+.toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.toolbar-actions form {
+    margin: 0;
+}
+
+.header-meta {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.detail-section h3 {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.info-row {
+    display: flex;
+    margin-bottom: 0.75rem;
+}
+
+.info-row.full-width {
+    flex-direction: column;
+}
+
+.info-row .label {
+    width: 100px;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    flex-shrink: 0;
+}
+
+.info-row .value {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.description-text {
+    margin-top: 0.5rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+.muted {
+    color: var(--text-secondary);
+}
+
+.payment-section {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    margin-bottom: 2rem;
+}
+
+.payment-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.payment-header h3 {
+    margin: 0;
+}
+
+.payment-tags {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.payment-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.payment-stat {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+}
+
+.payment-stat .label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.payment-stat .value {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-top: 0.35rem;
+}
+
+.payment-form {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.payment-input-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.payment-input-row input[type="number"] {
+    flex: 1;
+}
+
+.accept-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.proposal-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.proposal-grid input {
+    width: 100%;
+}
+
+.date-card {
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.date-card.accepted {
+    border-color: var(--accepted-color);
+    background-color: var(--accepted-bg-color);
+}
+
+.date-card.accepted.confirmed {
+    border-color: var(--confirmed-color);
+    background-color: var(--confirmed-bg-color);
+}
+
+.date-card.accepted.canceled {
+    border-color: var(--canceled-color);
+    background-color: var(--canceled-bg-color);
+}
+
+.date-card.accepted.withdrawn {
+    border-color: var(--withdrawn-color);
+    background-color: var(--withdrawn-bg-color);
+}
+
+.date-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: var(--card-bg);
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+}
+
+.date-icon .month {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.date-icon .day {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.date-info {
+    flex: 1;
+}
+
+.date-info .time {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.date-info .status {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.date-card.accepted .date-info .status {
+    color: var(--accepted-color);
+}
+
+.date-card.confirmed .date-info .status {
+    color: var(--confirmed-color);
+}
+
+.date-card.canceled .date-info .status {
+    color: var(--canceled-color);
+}
+
+.date-card.withdrawn .date-info .status {
+    color: var(--withdrawn-color);
+}
+
+.date-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.requested-dates-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+@media (max-width: 768px) {
+    .detail-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .payment-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .payment-input-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .proposal-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .date-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .date-actions {
+        flex-direction: column;
+    }
+
+    .inbox-table thead {
+        display: none;
+    }
+
+    .inbox-table tr {
+        display: block;
+        border-bottom: 1px solid var(--border-color);
+        padding: 1rem;
+    }
+
+    .inbox-table td {
+        display: block;
+        padding: 0.5rem 0;
+        border: none;
+    }
+}
