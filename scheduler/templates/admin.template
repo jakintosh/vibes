@@ -79,9 +79,20 @@
                     <div class="cal-time">{{.AcceptedDate.Start.Format "3:04 PM"}}</div>
                 </div>
                 <div class="upcoming-info">
-                    <div class="upcoming-title">{{.Title}}</div>
-                    <div class="upcoming-contact">{{.ContactName}}</div>
-                    <span class="status-badge {{statusClass .Status}}">{{.Status}}</span>
+                    <div class="upcoming-title-row">
+                        <div>
+                            <div class="upcoming-title">{{.Title}}</div>
+                            <div class="upcoming-contact">{{.ContactName}}</div>
+                        </div>
+                        <div class="upcoming-badges">
+                            <span class="status-badge {{statusClass .Status}}">{{.Status}}</span>
+                            <span class="status-badge payment {{paymentClass .PaymentStatus}}">{{.PaymentStatus}}</span>
+                        </div>
+                    </div>
+                    <div class="payment-line">
+                        <div class="balance">{{money .AmountReceived}} / {{money .ProposedCost}}</div>
+                        {{if gt .DepositAmount 0.0}}<span class="pill">Deposit {{money .DepositAmount}}</span>{{end}}
+                    </div>
                 </div>
                 <div class="upcoming-action">
                     <a href="/event/{{.ID}}" class="btn-sm btn-secondary">Details</a>

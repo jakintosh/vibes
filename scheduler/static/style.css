@@ -1,27 +1,70 @@
 :root {
+    /* Palette */
+    --palette-blue: #3b82f6;
+    --palette-blue-tint: rgba(59, 130, 246, 0.18);
+    --palette-green: #10b981;
+    --palette-green-tint: rgba(16, 185, 129, 0.18);
+    --palette-red: #ef4444;
+    --palette-red-tint: rgba(239, 68, 68, 0.18);
+    --palette-orange: #f59e0b;
+    --palette-orange-tint: rgba(245, 158, 11, 0.18);
+    --palette-purple: #a855f7;
+    --palette-purple-tint: rgba(168, 85, 247, 0.18);
+    --palette-gray: #94a3b8;
+    --palette-gray-tint: rgba(148, 163, 184, 0.18);
+
+    /* Base UI */
     --bg-color: #0f172a;
     --sidebar-bg: #1e293b;
     --text-primary: #f8fafc;
     --text-secondary: #94a3b8;
-    --accent-color: #3b82f6;
+    --accent-color: var(--palette-blue);
     --accent-hover: #2563eb;
-    --success-color: #10b981;
-    --danger-color: #ef4444;
-    --warning-color: #f59e0b;
-    --requested-color: #cbd5e1;
-    --accepted-color: var(--accent-color);
-    --confirmed-color: var(--success-color);
-    --withdrawn-color: var(--warning-color);
-    --canceled-color: var(--danger-color);
-    --requested-tint: rgba(148, 163, 184, 0.18);
-    --accepted-tint: rgba(59, 130, 246, 0.18);
-    --confirmed-tint: rgba(16, 185, 129, 0.18);
-    --withdrawn-tint: rgba(245, 158, 11, 0.18);
-    --canceled-tint: rgba(239, 68, 68, 0.18);
+    --success-color: var(--palette-green);
+    --danger-color: var(--palette-red);
+    --warning-color: var(--palette-orange);
     --solid-text-color: #ffffff;
     --border-color: #334155;
     --card-bg: #1e293b;
     --input-bg: #0f172a;
+
+    /* Semantic status tokens */
+    --status-pending-color: var(--palette-gray);
+    --status-pending-bg: var(--palette-gray-tint);
+    --status-ready-color: var(--palette-blue);
+    --status-ready-bg: var(--palette-blue-tint);
+    --status-confirmed-color: var(--palette-green);
+    --status-confirmed-bg: var(--palette-green-tint);
+    --status-error-color: var(--palette-red);
+    --status-error-bg: var(--palette-red-tint);
+    --status-attention-color: var(--palette-orange);
+    --status-attention-bg: var(--palette-orange-tint);
+    --status-done-color: var(--palette-purple);
+    --status-done-bg: var(--palette-purple-tint);
+
+    /* Mappings for legacy state names */
+    --requested-color: var(--status-pending-color);
+    --requested-bg-color: var(--status-pending-bg);
+    --accepted-color: var(--status-ready-color);
+    --accepted-bg-color: var(--status-ready-bg);
+    --confirmed-color: var(--status-confirmed-color);
+    --confirmed-bg-color: var(--status-confirmed-bg);
+    --withdrawn-color: var(--status-error-color);
+    --withdrawn-bg-color: var(--status-error-bg);
+    --canceled-color: var(--status-error-color);
+    --canceled-bg-color: var(--status-error-bg);
+
+    /* Payment mappings */
+    --payment-proposed-bg-color: var(--status-pending-bg);
+    --payment-proposed-color: var(--status-pending-color);
+    --payment-due-bg-color: var(--status-attention-bg);
+    --payment-due-color: var(--status-attention-color);
+    --payment-paid-bg-color: var(--status-confirmed-bg);
+    --payment-paid-color: var(--status-confirmed-color);
+    --payment-refundable-bg-color: var(--status-attention-bg);
+    --payment-refundable-color: var(--status-attention-color);
+    --payment-settled-bg-color: var(--status-done-bg);
+    --payment-settled-color: var(--status-done-color);
 }
 
 /* Scrollbar Styles */
@@ -49,24 +92,50 @@
     --sidebar-bg: #ffffff;
     --text-primary: #0f172a;
     --text-secondary: #64748b;
-    --accent-color: #3b82f6;
+    --accent-color: var(--palette-blue);
     --accent-hover: #2563eb;
-    --success-color: #10b981;
-    --danger-color: #ef4444;
-    --requested-color: #334155;
-    --requested-tint: #e2e8f0;
-    --accepted-tint: #dce8ff;
-    --confirmed-tint: #d8fae1;
-    --withdrawn-tint: #feefc4;
-    --canceled-tint: #fededf;
-    --accepted-color: #c7d8ff;
-    --confirmed-color: #c5f7d2;
-    --withdrawn-color: #fde6a6;
-    --canceled-color: #fecdd3;
+    --success-color: var(--palette-green);
+    --danger-color: var(--palette-red);
+    --warning-color: var(--palette-orange);
     --solid-text-color: #0f172a;
     --border-color: #e2e8f0;
     --card-bg: #ffffff;
     --input-bg: #f1f5f9;
+
+    --status-pending-color: #475569;
+    --status-pending-bg: #e2e8f0;
+    --status-ready-color: var(--palette-blue);
+    --status-ready-bg: #dce8ff;
+    --status-confirmed-color: #15803d;
+    --status-confirmed-bg: #d1fae5;
+    --status-error-color: var(--palette-red);
+    --status-error-bg: #fee2e2;
+    --status-attention-color: #b45309;
+    --status-attention-bg: #fef3c7;
+    --status-done-color: #7c3aed;
+    --status-done-bg: #ede9fe;
+
+    --requested-color: var(--status-pending-color);
+    --requested-bg-color: var(--status-pending-bg);
+    --accepted-color: var(--status-ready-color);
+    --accepted-bg-color: var(--status-ready-bg);
+    --confirmed-color: var(--status-confirmed-color);
+    --confirmed-bg-color: var(--status-confirmed-bg);
+    --withdrawn-color: var(--status-error-color);
+    --withdrawn-bg-color: var(--status-error-bg);
+    --canceled-color: var(--status-error-color);
+    --canceled-bg-color: var(--status-error-bg);
+
+    --payment-proposed-bg-color: var(--status-pending-bg);
+    --payment-proposed-color: var(--status-pending-color);
+    --payment-due-bg-color: var(--status-attention-bg);
+    --payment-due-color: var(--status-attention-color);
+    --payment-paid-bg-color: var(--status-confirmed-bg);
+    --payment-paid-color: var(--status-confirmed-color);
+    --payment-refundable-bg-color: var(--status-attention-bg);
+    --payment-refundable-color: var(--status-attention-color);
+    --payment-settled-bg-color: var(--status-done-bg);
+    --payment-settled-color: var(--status-done-color);
 }
 
 body {
@@ -273,14 +342,14 @@ body {
 }
 
 .month-event.requested {
-    background-color: var(--requested-tint);
+    background-color: var(--requested-bg-color);
     color: var(--requested-color);
     border: 1px dashed var(--requested-color);
 }
 
 .month-event.conflict,
 .month-event.requested.conflict {
-    background-color: var(--canceled-tint);
+    background-color: var(--canceled-bg-color);
     border: 1px dashed var(--canceled-color);
     color: var(--canceled-color);
 }
@@ -308,12 +377,6 @@ body {
     background-color: var(--canceled-color);
     border: 1px solid var(--canceled-color);
     color: var(--solid-text-color);
-}
-
-.status-badge.conflict {
-    background-color: var(--canceled-tint);
-    color: var(--canceled-color);
-    border: 1px dashed var(--canceled-color);
 }
 
 /* Week View */
@@ -412,13 +475,13 @@ body {
 }
 
 .week-event.requested {
-    background-color: var(--requested-tint);
+    background-color: var(--requested-bg-color);
     color: var(--requested-color);
     border: 1px dashed var(--requested-color);
 }
 
 .week-event.conflict {
-    background-color: var(--canceled-tint);
+    background-color: var(--canceled-bg-color);
     border: 2px dashed var(--canceled-color);
     color: var(--canceled-color);
     z-index: 20;
@@ -559,37 +622,86 @@ textarea:focus {
     border-radius: 1rem;
     font-size: 0.8rem;
     font-weight: 600;
+    border-width: 1px;
+    border-style: solid;
 }
 
 .status-badge.requested {
-    background-color: var(--requested-tint);
-    border: 1px dashed var(--requested-color);
+    background-color: var(--requested-bg-color);
+    border-color: var(--requested-color);
     color: var(--requested-color);
 }
 
 .status-badge.accepted {
-    background-color: var(--accepted-tint);
-    border: 1px solid var(--accepted-color);
+    background-color: var(--accepted-bg-color);
+    border-color: var(--accepted-color);
     color: var(--accepted-color);
 }
 
 .status-badge.confirmed {
-    background-color: var(--confirmed-tint);
-    border: 1px solid var(--confirmed-color);
+    background-color: var(--confirmed-bg-color);
+    border-color: var(--confirmed-color);
     color: var(--confirmed-color);
 }
 
 .status-badge.withdrawn {
-    background-color: var(--withdrawn-tint);
-    border: 1px solid var(--withdrawn-color);
+    background-color: var(--withdrawn-bg-color);
+    border-color: var(--withdrawn-color);
     color: var(--withdrawn-color);
 }
 
 .status-badge.canceled,
 .status-badge.denied {
-    background-color: var(--canceled-tint);
-    border: 1px solid var(--canceled-color);
+    background-color: var(--canceled-bg-color);
+    border-color: var(--canceled-color);
     color: var(--canceled-color);
+}
+
+.status-badge.available {
+    background-color: rgba(16, 185, 129, 0.2);
+    color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.status-badge.conflict {
+    background-color: var(--status-error-bg);
+    color: var(--status-error-color);
+    border-color: var(--status-error-color);
+}
+
+.status-badge.payment {
+    border-width: 1px;
+    border-style: solid;
+}
+
+.status-badge.payment-proposed {
+    background: var(--payment-proposed-bg-color);
+    color: var(--payment-proposed-color);
+    border-color: var(--payment-proposed-color);
+}
+
+.status-badge.payment-due {
+    background: var(--payment-due-bg-color);
+    color: var(--payment-due-color);
+    border-color: var(--payment-due-color);
+}
+
+.status-badge.payment-paid {
+    background: var(--payment-paid-bg-color);
+    color: var(--payment-paid-color);
+    border-color: var(--payment-paid-color);
+}
+
+.status-badge.payment-refundable {
+    background: var(--payment-refundable-bg-color);
+    color: var(--payment-refundable-color);
+    border-color: var(--payment-refundable-color);
+}
+
+.status-badge.payment-settled {
+    background: var(--payment-settled-bg-color);
+    color: var(--payment-settled-color);
+    border-color: var(--payment-settled-color);
 }
 
 .date-options {
@@ -653,7 +765,7 @@ textarea:focus {
 .agenda-event.requested {
     border: 1px dashed var(--requested-color);
     border-left: 4px dashed var(--requested-color);
-    background-color: var(--requested-tint);
+    background-color: var(--requested-bg-color);
     color: var(--requested-color);
 }
 
@@ -688,7 +800,7 @@ textarea:focus {
 .agenda-event.requested.conflict {
     border: 1px dashed var(--canceled-color);
     border-left: 4px dashed var(--canceled-color);
-    background-color: var(--canceled-tint);
+    background-color: var(--canceled-bg-color);
     color: var(--canceled-color);
 }
 
@@ -974,22 +1086,26 @@ textarea:focus {
 }
 
 .inbox-date-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: 16ch 10ch;
+    column-gap: 0.75rem;
     align-items: center;
-    gap: 1rem;
     font-size: 0.9rem;
 }
 
-.status-badge.available {
-    background-color: rgba(16, 185, 129, 0.2);
-    color: var(--success-color);
-    border: 1px solid var(--success-color);
+.inbox-date-row span:first-child {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.inbox-date-row span:nth-child(2) {
+    text-align: center;
 }
 
 /* Upcoming Events List */
 .upcoming-list {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    display: flex;
+    flex-direction: column;
     gap: 1rem;
 }
 
@@ -997,9 +1113,9 @@ textarea:focus {
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 0.75rem;
-    padding: 1rem;
+    padding: 1.25rem;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 1rem;
 }
 
@@ -1041,10 +1157,16 @@ textarea:focus {
     min-width: 0;
 }
 
+.upcoming-title-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
 .upcoming-title {
     font-weight: 600;
     margin-bottom: 0.25rem;
-    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -1054,9 +1176,69 @@ textarea:focus {
     color: var(--text-secondary);
 }
 
+.upcoming-badges {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.payment-line {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-top: 0.5rem;
+    color: var(--text-secondary);
+    flex-wrap: wrap;
+}
+
+.payment-line .balance {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.16);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
 /* Event Detail Refinements */
-.header-content h2 {
-    margin: 0 0 0.5rem 0;
+.header-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.toolbar-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.toolbar-title h2 {
+    margin: 0;
+}
+
+.toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.toolbar-actions form {
+    margin: 0;
 }
 
 .header-meta {
@@ -1109,6 +1291,96 @@ textarea:focus {
     white-space: pre-wrap;
 }
 
+.muted {
+    color: var(--text-secondary);
+}
+
+.payment-section {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    margin-bottom: 2rem;
+}
+
+.payment-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.payment-header h3 {
+    margin: 0;
+}
+
+.payment-tags {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.payment-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.payment-stat {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+}
+
+.payment-stat .label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.payment-stat .value {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-top: 0.35rem;
+}
+
+.payment-form {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.payment-input-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.payment-input-row input[type="number"] {
+    flex: 1;
+}
+
+.accept-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.proposal-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.proposal-grid input {
+    width: 100%;
+}
+
 .date-card {
     background-color: var(--input-bg);
     border: 1px solid var(--border-color);
@@ -1122,22 +1394,22 @@ textarea:focus {
 
 .date-card.accepted {
     border-color: var(--accepted-color);
-    background-color: var(--accepted-tint);
+    background-color: var(--accepted-bg-color);
 }
 
 .date-card.accepted.confirmed {
     border-color: var(--confirmed-color);
-    background-color: var(--confirmed-tint);
+    background-color: var(--confirmed-bg-color);
 }
 
 .date-card.accepted.canceled {
     border-color: var(--canceled-color);
-    background-color: var(--canceled-tint);
+    background-color: var(--canceled-bg-color);
 }
 
 .date-card.accepted.withdrawn {
     border-color: var(--withdrawn-color);
-    background-color: var(--withdrawn-tint);
+    background-color: var(--withdrawn-bg-color);
 }
 
 .date-icon {
@@ -1210,8 +1482,26 @@ textarea:focus {
         gap: 1rem;
     }
 
-    .upcoming-list {
+    .payment-grid {
         grid-template-columns: 1fr;
+    }
+
+    .payment-input-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .proposal-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .date-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .date-actions {
+        flex-direction: column;
     }
 
     .inbox-table thead {

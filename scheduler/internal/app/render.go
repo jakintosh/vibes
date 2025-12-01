@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -35,6 +36,18 @@ func render(w http.ResponseWriter, r *http.Request, tmplName string, data any) {
 		},
 		"statusClass": func(status db.EventStatus) string {
 			return strings.ToLower(string(status))
+		},
+		"paymentClass": func(status db.PaymentStatus) string {
+			return "payment-" + strings.ToLower(string(status))
+		},
+		"money": func(amount float64) string {
+			return fmt.Sprintf("$%.2f", amount)
+		},
+		"amountDue": func(proposed, received float64) float64 {
+			if proposed <= received {
+				return 0
+			}
+			return proposed - received
 		},
 	}
 

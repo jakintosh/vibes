@@ -7,10 +7,13 @@
 
     <div class="card">
         <div class="card-header">
-            <div class="header-content">
-                <h2>{{.Title}}</h2>
-                <div class="status-actions">
+            <div class="header-toolbar">
+                <div class="toolbar-title">
+                    <h2>{{.Title}}</h2>
                     <span class="status-badge {{statusClass .Status}}">{{.Status}}</span>
+                    <span class="status-badge payment {{paymentClass .PaymentStatus}}">Payment: {{.PaymentStatus}}</span>
+                </div>
+                <div class="toolbar-actions">
                     {{if eq .Status "Accepted"}}
                     <form hx-post="/event/confirm/{{.ID}}" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
                         <button type="submit" class="btn-sm btn-primary">Confirm</button>
@@ -57,6 +60,56 @@
                         <p class="value description-text">{{.Description}}</p>
                     </div>
                 </div>
+            </div>
+
+            <div class="payment-section">
+                <div class="payment-header">
+                    <div>
+                        <h3>Payment</h3>
+                        <p class="muted">Track proposed costs, deposits, and what has been received.</p>
+                    </div>
+                    <div class="payment-tags">
+                        <span class="status-badge payment {{paymentClass .PaymentStatus}}">{{.PaymentStatus}}</span>
+                        {{if gt .DepositAmount 0.0}}
+                        <span class="pill">Deposit: {{money .DepositAmount}}</span>
+                        {{end}}
+                    </div>
+                </div>
+
+                <div class="payment-grid">
+                    <div class="payment-stat">
+                        <span class="label">Proposed Total</span>
+                        <span class="value">{{money .ProposedCost}}</span>
+                    </div>
+                    <div class="payment-stat">
+                        <span class="label">Received</span>
+                        <span class="value">{{money .AmountReceived}}</span>
+                    </div>
+                    <div class="payment-stat">
+                        <span class="label">Balance Due</span>
+                        <span class="value">{{money (amountDue .ProposedCost .AmountReceived)}}</span>
+                    </div>
+                </div>
+
+                {{if eq .PaymentStatus "Proposed"}}
+                <div class="info-note muted">Confirm the event to mark the proposed price as due.</div>
+                {{else if or (eq .PaymentStatus "Due") (eq .PaymentStatus "Paid")}}
+                <form class="payment-form" hx-post="/event/payment/{{.ID}}" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
+                    <label for="amount" class="label">Record Payment</label>
+                    <div class="payment-input-row">
+                        <input type="number" name="amount" step="0.01" min="0" placeholder="Amount received" required>
+                        <button type="submit" class="btn-sm btn-primary">Add Payment</button>
+                    </div>
+                    <div class="info-note muted">Remaining balance: {{money (amountDue .ProposedCost .AmountReceived)}}</div>
+                </form>
+                {{else if eq .PaymentStatus "Refundable"}}
+                <div class="info-note">Deposit can be refunded now that the event is complete.</div>
+                <form hx-post="/event/settle/{{.ID}}" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
+                    <button type="submit" class="btn-sm btn-secondary">Mark Deposit Refunded</button>
+                </form>
+                {{else if eq .PaymentStatus "Settled"}}
+                <div class="info-note muted">Payment fully settled.</div>
+                {{end}}
             </div>
 
             <div class="dates-section">
@@ -106,9 +159,17 @@
                             {{if eq $.Status "Requested"}}
                             <div class="date-actions">
                                 <a href="/calendar?view=week&date={{.Start.Format "2006-01-02"}}&highlight={{$eventID}}" class="btn-sm btn-secondary" style="text-decoration: none; display: inline-flex; align-items: center;">View In Calendar</a>
-                                <form hx-post="/event/accept/{{$eventID}}" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)" style="margin: 0;">
+                                <form hx-post="/event/accept/{{$eventID}}" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)" class="accept-form">
                                     <input type="hidden" name="start" value="{{.Start.Format "2006-01-02T15:04"}}">
                                     <input type="hidden" name="end" value="{{.End.Format "2006-01-02T15:04"}}">
+                                    <div class="proposal-grid">
+                                        <label class="label">Proposed Cost
+                                            <input type="number" name="proposed_cost" step="0.01" min="0" required>
+                                        </label>
+                                        <label class="label">Deposit (optional)
+                                            <input type="number" name="deposit_amount" step="0.01" min="0">
+                                        </label>
+                                    </div>
                                     <button type="submit" class="btn-sm btn-primary">Approve</button>
                                 </form>
                             </div>
@@ -163,16 +224,6 @@
         justify-content: space-between;
         align-items: center;
         margin-bottom: 2rem;
-    }
-
-    .status-actions {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-    }
-
-    .status-actions form {
-        margin: 0;
     }
 
     .ghost {

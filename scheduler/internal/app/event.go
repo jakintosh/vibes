@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"event-scheduler/internal/service"
@@ -41,12 +42,26 @@ func HandlePostEventAccept(w http.ResponseWriter, r *http.Request) {
 	start, _ := time.Parse(layout, r.FormValue("start"))
 	end, _ := time.Parse(layout, r.FormValue("end"))
 
-	err := service.AcceptEvent(id, start, end)
+	proposedCost, err := strconv.ParseFloat(r.FormValue("proposed_cost"), 64)
+	if err != nil {
+		http.Error(w, "Invalid proposed cost", http.StatusBadRequest)
+		return
+	}
+
+	depositAmount, err := strconv.ParseFloat(r.FormValue("deposit_amount"), 64)
+	if err != nil && r.FormValue("deposit_amount") != "" {
+		http.Error(w, "Invalid deposit amount", http.StatusBadRequest)
+		return
+	}
+
+	err = service.AcceptEvent(id, start, end, proposedCost, depositAmount)
 	if err != nil {
 		if errors.Is(err, service.ErrConflict) {
 			http.Error(w, "Conflict detected! Cannot accept this event.", http.StatusConflict)
 		} else if errors.Is(err, service.ErrInvalidStatusTransition) {
 			http.Error(w, "Invalid event status for accepting", http.StatusBadRequest)
+		} else if errors.Is(err, service.ErrInvalidPayment) {
+			http.Error(w, "Invalid payment details for this event", http.StatusBadRequest)
 		} else {
 			http.Error(w, "Error accepting event", http.StatusInternalServerError)
 		}
@@ -104,6 +119,46 @@ func HandlePostEventCancel(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		http.Error(w, "Error canceling event", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("HX-Refresh", "true")
+}
+
+func HandlePostEventPayment(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	amount, err := strconv.ParseFloat(r.FormValue("amount"), 64)
+	if err != nil {
+		http.Error(w, "Invalid payment amount", http.StatusBadRequest)
+		return
+	}
+	if err := service.RecordPayment(id, amount); err != nil {
+		if errors.Is(err, service.ErrInvalidPayment) {
+			http.Error(w, "Invalid payment amount", http.StatusBadRequest)
+			return
+		}
+		if errors.Is(err, service.ErrInvalidStatusTransition) {
+			http.Error(w, "Payment not allowed in current state", http.StatusBadRequest)
+			return
+		}
+		http.Error(w, "Error recording payment", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("HX-Refresh", "true")
+}
+
+func HandlePostEventSettle(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if err := service.SettleRefundable(id); err != nil {
+		if errors.Is(err, service.ErrInvalidStatusTransition) {
+			http.Error(w, "Invalid payment status for settlement", http.StatusBadRequest)
+			return
+		}
+		http.Error(w, "Error settling payment", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("HX-Refresh", "true")

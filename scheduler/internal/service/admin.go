@@ -24,6 +24,10 @@ func GetAdminDashboardData(sortMode string) (inbox []AdminEventData, upcoming []
 	now := time.Now()
 
 	for _, e := range events {
+		if err := normalizePayment(&e); err != nil {
+			return nil, nil, err
+		}
+
 		data := AdminEventData{
 			Event:         e,
 			DateConflicts: make(map[int]bool),
