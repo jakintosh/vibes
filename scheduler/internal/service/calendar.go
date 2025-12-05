@@ -72,13 +72,14 @@ func GetCalendarEvents(start, end time.Time) ([]DisplayEvent, error) {
 				height := (durationMinutes / totalMinutes) * 100
 
 				displayEvents = append(displayEvents, DisplayEvent{
-					Event:       e,
-					DisplayDate: dayStart,
-					Start:       curr,
-					End:         segmentEnd,
-					IsConflict:  isConflict,
-					Top:         top,
-					Height:      height,
+					Event:         e,
+					DisplayDate:   dayStart,
+					Start:         curr,
+					End:           segmentEnd,
+					IsConflict:    isConflict,
+					NeedsStaffing: NeedsStaffing(&e),
+					Top:           top,
+					Height:        height,
 				})
 
 				curr = dayEnd.Add(1 * time.Nanosecond) // Next day start

@@ -66,6 +66,15 @@ func main() {
 		"Code review session for the core module.",
 	}
 	names := []string{"Alice", "Bob", "Charlie", "Diana", "Evan", "Fiona", "George", "Hannah"}
+	staffNames := []string{"Sarah", "Mike", "Jessica", "David", "Emily", "Chris"}
+	staffNotesList := []string{
+		"Client requested extra chairs.",
+		"Make sure the projector is ready.",
+		"Serve coffee during the break.",
+		"Check the sound system beforehand.",
+		"Clean up immediately after.",
+		"", "", "", // Some empty notes
+	}
 
 	var acceptedIntervals []db.EventDate
 
@@ -117,7 +126,45 @@ func main() {
 			e.AcceptedDate = &db.EventDate{Start: start, End: end}
 			e.Dates = []db.EventDate{{Start: start, End: end}}
 			acceptedIntervals = append(acceptedIntervals, *e.AcceptedDate)
+
+			// Payment and Confirmation Logic
+			e.ProposedCost = float64(200 + rand.Intn(1801)) // 200 to 2000
+			e.DepositAmount = e.ProposedCost * 0.25
+
+			// 50% chance to be confirmed if accepted
+			if rand.Float64() < 0.5 {
+				e.Status = db.StatusConfirmed
+
+				// Payment status for confirmed events
+				r := rand.Float64()
+				if r < 0.6 {
+					e.PaymentStatus = db.PaymentPaid // Deposit paid
+					e.AmountReceived = e.DepositAmount
+				} else if r < 0.9 {
+					e.PaymentStatus = db.PaymentSettled // Fully paid
+					e.AmountReceived = e.ProposedCost
+				} else {
+					e.PaymentStatus = db.PaymentDue // Confirmed but maybe payment pending (unlikely but possible)
+					e.AmountReceived = 0
+				}
+
+				// Staffing for confirmed events
+				e.StaffOpener = staffNames[rand.Intn(len(staffNames))]
+				e.StaffCloser = staffNames[rand.Intn(len(staffNames))]
+				e.StaffNotes = staffNotesList[rand.Intn(len(staffNotesList))]
+
+			} else {
+				// Accepted but not confirmed
+				if rand.Float64() < 0.7 {
+					e.PaymentStatus = db.PaymentProposed
+				} else {
+					e.PaymentStatus = db.PaymentDue
+				}
+				e.AmountReceived = 0
+			}
+
 		} else {
+			// Requested events
 			if len(acceptedIntervals) > 0 && rand.Float64() < 0.5 {
 				target := acceptedIntervals[rand.Intn(len(acceptedIntervals))]
 				offset := rand.Intn(2) - 1
@@ -131,6 +178,7 @@ func main() {
 				altEnd := altStart.Add(time.Duration(durationHours) * time.Hour)
 				e.Dates = append(e.Dates, db.EventDate{Start: altStart, End: altEnd})
 			}
+			e.PaymentStatus = db.PaymentProposed
 		}
 
 		if err := db.CreateEvent(e); err != nil {

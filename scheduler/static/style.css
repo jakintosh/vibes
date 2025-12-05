@@ -711,6 +711,46 @@ textarea:focus {
     border-color: var(--payment-settled-color);
 }
 
+/* Staffing badges - use dashed border to differentiate from event/payment status */
+.status-badge.needs-staffing {
+    background: transparent;
+    color: var(--warning-color);
+    border-color: var(--warning-color);
+    border-style: dashed;
+}
+
+.status-badge.staffed {
+    background: var(--status-confirmed-bg);
+    color: var(--status-confirmed-color);
+    border-color: var(--status-confirmed-color);
+    border-style: dashed;
+}
+
+/* Staffing form grid */
+.staffing-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* Staffing icon for calendar views */
+.staffing-icon {
+    font-size: 0.7rem;
+    margin-left: 0.25rem;
+    opacity: 0.8;
+}
+
+/* Staffing status in admin table */
+.staffing-assigned {
+    color: var(--text-primary);
+}
+
+.staffing-missing {
+    color: var(--text-secondary);
+    opacity: 0.5;
+}
+
 .date-options {
     margin-top: 1rem;
 }

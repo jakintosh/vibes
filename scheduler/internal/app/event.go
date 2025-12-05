@@ -163,3 +163,25 @@ func HandlePostEventSettle(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("HX-Refresh", "true")
 }
+
+func HandlePostEventStaffing(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	opener := r.FormValue("opener")
+	closer := r.FormValue("closer")
+	notes := r.FormValue("notes")
+
+	if err := service.UpdateStaffing(id, opener, closer, notes); err != nil {
+		if errors.Is(err, service.ErrInvalidStatusTransition) {
+			http.Error(w, "Staffing can only be assigned to accepted or confirmed events", http.StatusBadRequest)
+			return
+		}
+		http.Error(w, "Error updating staffing", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("HX-Refresh", "true")
+}

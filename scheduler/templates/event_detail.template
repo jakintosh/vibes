@@ -15,14 +15,14 @@
                 </div>
                 <div class="toolbar-actions">
                     {{if eq .Status "Accepted"}}
-                    <form hx-post="/event/confirm/{{.ID}}" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
+                    <form hx-post="/event/{{.ID}}/confirm" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
                         <button type="submit" class="btn-sm btn-primary">Confirm</button>
                     </form>
-                    <form hx-post="/event/withdraw/{{.ID}}" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
+                    <form hx-post="/event/{{.ID}}/withdraw" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
                         <button type="submit" class="btn-sm btn-danger ghost">Withdraw</button>
                     </form>
                     {{else if eq .Status "Confirmed"}}
-                    <form hx-post="/event/cancel/{{.ID}}" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
+                    <form hx-post="/event/{{.ID}}/cancel" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
                         <button type="submit" class="btn-sm btn-danger">Cancel</button>
                     </form>
                     {{end}}
@@ -94,7 +94,7 @@
                 {{if eq .PaymentStatus "Proposed"}}
                 <div class="info-note muted">Confirm the event to mark the proposed price as due.</div>
                 {{else if or (eq .PaymentStatus "Due") (eq .PaymentStatus "Paid")}}
-                <form class="payment-form" hx-post="/event/payment/{{.ID}}" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
+                <form class="payment-form" hx-post="/event/{{.ID}}/payment" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
                     <label for="amount" class="label">Record Payment</label>
                     <div class="payment-input-row">
                         <input type="number" name="amount" step="0.01" min="0" placeholder="Amount received" required>
@@ -104,7 +104,7 @@
                 </form>
                 {{else if eq .PaymentStatus "Refundable"}}
                 <div class="info-note">Deposit can be refunded now that the event is complete.</div>
-                <form hx-post="/event/settle/{{.ID}}" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
+                <form hx-post="/event/{{.ID}}/settle" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
                     <button type="submit" class="btn-sm btn-secondary">Mark Deposit Refunded</button>
                 </form>
                 {{else if eq .PaymentStatus "Settled"}}
@@ -112,11 +112,47 @@
                 {{end}}
             </div>
 
+            {{if or (eq .Status "Accepted") (eq .Status "Confirmed")}}
+            <div class="payment-section">
+                <div class="payment-header">
+                    <div>
+                        <h3>Staffing</h3>
+                        <p class="muted">Assign staff to open and close the space.</p>
+                    </div>
+                    <div class="payment-tags">
+                        {{if or (eq .StaffOpener "") (eq .StaffCloser "")}}
+                        <span class="status-badge needs-staffing">Needs Staffing</span>
+                        {{else}}
+                        <span class="status-badge staffed">Staffed</span>
+                        {{end}}
+                    </div>
+                </div>
+
+                <form class="staffing-form" hx-post="/event/{{.ID}}/staffing" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
+                    <div class="staffing-grid">
+                        <div class="form-group">
+                            <label for="opener">Opener</label>
+                            <input type="text" name="opener" id="opener" value="{{.StaffOpener}}" placeholder="Who will open?">
+                        </div>
+                        <div class="form-group">
+                            <label for="closer">Closer</label>
+                            <input type="text" name="closer" id="closer" value="{{.StaffCloser}}" placeholder="Who will close?">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="notes">Staff Notes</label>
+                        <textarea name="notes" id="notes" rows="2" placeholder="Special instructions for staff...">{{.StaffNotes}}</textarea>
+                    </div>
+                    <button type="submit" class="btn-sm btn-primary">Save Staffing</button>
+                </form>
+            </div>
+            {{end}}
+
             <div class="dates-section">
                 <div class="dates-header">
                     <h3>Dates</h3>
                     {{if eq .Status "Requested"}}
-                    <form hx-post="/event/deny/{{.ID}}" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
+                    <form hx-post="/event/{{.ID}}/deny" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)">
                         <button type="submit" class="btn-sm btn-danger">Deny Event</button>
                     </form>
                     {{end}}
@@ -159,7 +195,7 @@
                             {{if eq $.Status "Requested"}}
                             <div class="date-actions">
                                 <a href="/calendar?view=week&date={{.Start.Format "2006-01-02"}}&highlight={{$eventID}}" class="btn-sm btn-secondary" style="text-decoration: none; display: inline-flex; align-items: center;">View In Calendar</a>
-                                <form hx-post="/event/accept/{{$eventID}}" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)" class="accept-form">
+                                <form hx-post="/event/{{$eventID}}/accept" hx-swap="none" hx-on::response-error="alert('Error: ' + event.detail.xhr.responseText)" class="accept-form">
                                     <input type="hidden" name="start" value="{{.Start.Format "2006-01-02T15:04"}}">
                                     <input type="hidden" name="end" value="{{.End.Format "2006-01-02T15:04"}}">
                                     <div class="proposal-grid">

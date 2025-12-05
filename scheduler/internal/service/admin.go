@@ -7,10 +7,10 @@ import (
 	db "event-scheduler/internal/db"
 )
 
-func GetAdminDashboardData(sortMode string) (inbox []AdminEventData, upcoming []AdminEventData, err error) {
+func GetAdminDashboardData(sortMode string) (inbox []AdminEventData, upcoming []AdminEventData, needsStaffing []AdminEventData, err error) {
 	events, err := db.GetEvents()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// Identify Accepted Events for conflict checking
@@ -25,7 +25,7 @@ func GetAdminDashboardData(sortMode string) (inbox []AdminEventData, upcoming []
 
 	for _, e := range events {
 		if err := normalizePayment(&e); err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 
 		data := AdminEventData{
@@ -48,6 +48,10 @@ func GetAdminDashboardData(sortMode string) (inbox []AdminEventData, upcoming []
 			// Only show future events in Upcoming
 			if e.AcceptedDate.Start.After(now) {
 				upcoming = append(upcoming, data)
+				// Also add to needsStaffing if missing opener or closer
+				if NeedsStaffing(&e) {
+					needsStaffing = append(needsStaffing, data)
+				}
 			}
 		}
 	}
@@ -67,12 +71,15 @@ func GetAdminDashboardData(sortMode string) (inbox []AdminEventData, upcoming []
 		})
 	}
 
-	// Sort Upcoming (always soonest first)
+	// Sort Upcoming and NeedsStaffing (always soonest first)
 	sort.Slice(upcoming, func(i, j int) bool {
 		return upcoming[i].AcceptedDate.Start.Before(upcoming[j].AcceptedDate.Start)
 	})
+	sort.Slice(needsStaffing, func(i, j int) bool {
+		return needsStaffing[i].AcceptedDate.Start.Before(needsStaffing[j].AcceptedDate.Start)
+	})
 
-	return inbox, upcoming, nil
+	return inbox, upcoming, needsStaffing, nil
 }
 
 func getEarliestDate(dates []db.EventDate) time.Time {

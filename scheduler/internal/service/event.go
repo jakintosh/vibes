@@ -132,6 +132,26 @@ func isScheduledStatus(status db.EventStatus) bool {
 	return status == db.StatusAccepted || status == db.StatusConfirmed
 }
 
+func UpdateStaffing(id, opener, closer, notes string) error {
+	event, err := db.GetEvent(id)
+	if err != nil {
+		return err
+	}
+
+	if !isScheduledStatus(event.Status) {
+		return ErrInvalidStatusTransition
+	}
+
+	return db.UpdateStaffing(id, opener, closer, notes)
+}
+
+func NeedsStaffing(event *db.Event) bool {
+	if !isScheduledStatus(event.Status) {
+		return false
+	}
+	return event.StaffOpener == "" || event.StaffCloser == ""
+}
+
 func normalizePayment(event *db.Event) error {
 	newStatus := event.PaymentStatus
 	if newStatus == "" {

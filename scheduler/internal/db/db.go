@@ -49,6 +49,9 @@ type Event struct {
 	ProposedCost   float64       `json:"proposed_cost"`
 	DepositAmount  float64       `json:"deposit_amount"`
 	AmountReceived float64       `json:"amount_received"`
+	StaffOpener    string        `json:"staff_opener"`
+	StaffCloser    string        `json:"staff_closer"`
+	StaffNotes     string        `json:"staff_notes"`
 	CreatedAt      time.Time     `json:"created_at"`
 }
 
@@ -89,6 +92,9 @@ func InitDB(dataSourceName string) error {
 		"ALTER TABLE events ADD COLUMN proposed_cost REAL DEFAULT 0;",
 		"ALTER TABLE events ADD COLUMN deposit_amount REAL DEFAULT 0;",
 		"ALTER TABLE events ADD COLUMN amount_received REAL DEFAULT 0;",
+		"ALTER TABLE events ADD COLUMN staff_opener TEXT DEFAULT '';",
+		"ALTER TABLE events ADD COLUMN staff_closer TEXT DEFAULT '';",
+		"ALTER TABLE events ADD COLUMN staff_notes TEXT DEFAULT '';",
 	}
 
 	for _, m := range migrations {
@@ -129,14 +135,14 @@ func CreateEvent(e Event) error {
 		e.PaymentStatus = PaymentProposed
 	}
 
-	_, err = db.Exec(`INSERT INTO events (id, title, contact_name, contact_phone, contact_email, description, needs_av, dates, status, accepted_date, payment_status, proposed_cost, deposit_amount, amount_received, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		e.ID, e.Title, e.ContactName, e.ContactPhone, e.ContactEmail, e.Description, e.NeedsAV, string(datesJSON), e.Status, acceptedDateJSON, e.PaymentStatus, e.ProposedCost, e.DepositAmount, e.AmountReceived, e.CreatedAt)
+	_, err = db.Exec(`INSERT INTO events (id, title, contact_name, contact_phone, contact_email, description, needs_av, dates, status, accepted_date, payment_status, proposed_cost, deposit_amount, amount_received, staff_opener, staff_closer, staff_notes, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		e.ID, e.Title, e.ContactName, e.ContactPhone, e.ContactEmail, e.Description, e.NeedsAV, string(datesJSON), e.Status, acceptedDateJSON, e.PaymentStatus, e.ProposedCost, e.DepositAmount, e.AmountReceived, e.StaffOpener, e.StaffCloser, e.StaffNotes, e.CreatedAt)
 	return err
 }
 
 func GetEvents() ([]Event, error) {
-	rows, err := db.Query("SELECT id, title, contact_name, contact_phone, contact_email, description, needs_av, dates, status, accepted_date, payment_status, proposed_cost, deposit_amount, amount_received, created_at FROM events")
+	rows, err := db.Query("SELECT id, title, contact_name, contact_phone, contact_email, description, needs_av, dates, status, accepted_date, payment_status, proposed_cost, deposit_amount, amount_received, staff_opener, staff_closer, staff_notes, created_at FROM events")
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +155,7 @@ func GetEvents() ([]Event, error) {
 		var acceptedDateStr sql.NullString
 		var createdAt sql.NullTime
 
-		err := rows.Scan(&e.ID, &e.Title, &e.ContactName, &e.ContactPhone, &e.ContactEmail, &e.Description, &e.NeedsAV, &datesStr, &e.Status, &acceptedDateStr, &e.PaymentStatus, &e.ProposedCost, &e.DepositAmount, &e.AmountReceived, &createdAt)
+		err := rows.Scan(&e.ID, &e.Title, &e.ContactName, &e.ContactPhone, &e.ContactEmail, &e.Description, &e.NeedsAV, &datesStr, &e.Status, &acceptedDateStr, &e.PaymentStatus, &e.ProposedCost, &e.DepositAmount, &e.AmountReceived, &e.StaffOpener, &e.StaffCloser, &e.StaffNotes, &createdAt)
 		if err != nil {
 			return nil, err
 		}
@@ -185,8 +191,8 @@ func GetEvent(id string) (*Event, error) {
 	var acceptedDateStr sql.NullString
 	var createdAt sql.NullTime
 
-	err := db.QueryRow("SELECT id, title, contact_name, contact_phone, contact_email, description, needs_av, dates, status, accepted_date, payment_status, proposed_cost, deposit_amount, amount_received, created_at FROM events WHERE id = ?", id).Scan(
-		&e.ID, &e.Title, &e.ContactName, &e.ContactPhone, &e.ContactEmail, &e.Description, &e.NeedsAV, &datesStr, &e.Status, &acceptedDateStr, &e.PaymentStatus, &e.ProposedCost, &e.DepositAmount, &e.AmountReceived, &createdAt)
+	err := db.QueryRow("SELECT id, title, contact_name, contact_phone, contact_email, description, needs_av, dates, status, accepted_date, payment_status, proposed_cost, deposit_amount, amount_received, staff_opener, staff_closer, staff_notes, created_at FROM events WHERE id = ?", id).Scan(
+		&e.ID, &e.Title, &e.ContactName, &e.ContactPhone, &e.ContactEmail, &e.Description, &e.NeedsAV, &datesStr, &e.Status, &acceptedDateStr, &e.PaymentStatus, &e.ProposedCost, &e.DepositAmount, &e.AmountReceived, &e.StaffOpener, &e.StaffCloser, &e.StaffNotes, &createdAt)
 	if err != nil {
 		return nil, err
 	}
@@ -235,5 +241,10 @@ func UpdatePayment(id string, status PaymentStatus, amountReceived float64) erro
 
 func UpdatePaymentStatus(id string, status PaymentStatus) error {
 	_, err := db.Exec("UPDATE events SET payment_status = ? WHERE id = ?", status, id)
+	return err
+}
+
+func UpdateStaffing(id, opener, closer, notes string) error {
+	_, err := db.Exec("UPDATE events SET staff_opener = ?, staff_closer = ?, staff_notes = ? WHERE id = ?", opener, closer, notes, id)
 	return err
 }

@@ -47,7 +47,7 @@
                     $day.Day)}}
                     <a href="/event/{{.Event.ID}}" class="month-event {{statusClass .Event.Status}} {{if .IsConflict}}conflict{{end}}">
                         <span class="month-time">{{.Start.Format "3:04 PM"}}</span>
-                        <span class="month-title">{{.Event.Title}}</span>
+                        <span class="month-title">{{.Event.Title}}{{if .NeedsStaffing}}<span class="staffing-icon" title="Needs Staffing">👤</span>{{end}}</span>
                     </a>
                     {{end}}
                     {{end}}
@@ -121,7 +121,7 @@
                     <a href="/event/{{.Event.ID}}" class="week-event {{statusClass .Event.Status}} {{if .IsConflict}}conflict{{end}} {{if eq .Event.ID $.HighlightID}}highlighted{{end}}"
                         style="top: {{.Top}}%; height: {{.Height}}%;">
                         <div class="week-event-content">
-                            <span class="time">{{.Start.Format "3:04 PM"}}</span>
+                            <span class="time">{{.Start.Format "3:04 PM"}}{{if .NeedsStaffing}}<span class="staffing-icon" title="Needs Staffing">👤</span>{{end}}</span>
                             <span class="title">{{.Event.Title}}</span>
                         </div>
                     </a>

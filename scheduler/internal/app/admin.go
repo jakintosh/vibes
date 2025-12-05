@@ -7,9 +7,10 @@ import (
 )
 
 type AdminPageData struct {
-	InboxEvents    []service.AdminEventData
-	UpcomingEvents []service.AdminEventData
-	SortMode       string
+	InboxEvents         []service.AdminEventData
+	UpcomingEvents      []service.AdminEventData
+	NeedsStaffingEvents []service.AdminEventData
+	SortMode            string
 }
 
 func HandleGetAdmin(w http.ResponseWriter, r *http.Request) {
@@ -18,15 +19,16 @@ func HandleGetAdmin(w http.ResponseWriter, r *http.Request) {
 		sortMode = "longest_waiting"
 	}
 
-	inbox, upcoming, err := service.GetAdminDashboardData(sortMode)
+	inbox, upcoming, needsStaffing, err := service.GetAdminDashboardData(sortMode)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
 	render(w, r, "admin.template", AdminPageData{
-		InboxEvents:    inbox,
-		UpcomingEvents: upcoming,
-		SortMode:       sortMode,
+		InboxEvents:         inbox,
+		UpcomingEvents:      upcoming,
+		NeedsStaffingEvents: needsStaffing,
+		SortMode:            sortMode,
 	})
 }
