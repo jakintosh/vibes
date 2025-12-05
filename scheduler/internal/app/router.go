@@ -29,6 +29,7 @@ func BuildRouter() *http.ServeMux {
 	mux.HandleFunc("POST /event/payment/{id}", HandlePostEventPayment)
 	mux.HandleFunc("POST /event/settle/{id}", HandlePostEventSettle)
 	mux.HandleFunc("GET /event/{id}", HandleGetEvent)
+	mux.HandleFunc("GET /settings", HandleGetSettings)
 
 	return mux
 }
