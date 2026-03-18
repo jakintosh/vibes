@@ -536,6 +536,53 @@
     .legend-sq-1 { background: var(--sq-color); }
     .legend-sq-2 { background: var(--sq-color-alt); }
 
+    /* ---- Empty hour rows ---- */
+    .hour-row.empty-hour .hour-label {
+      color: var(--border);
+    }
+
+    /* ---- Freshness indicator ---- */
+    .freshness-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      margin-bottom: 2px;
+    }
+
+    .freshness-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .freshness-dot.active    { background: #22c55e; }
+    .freshness-dot.expiring  { background: #f59e0b; }
+    .freshness-dot.inactive  { background: #94a3b8; }
+
+    .freshness-text {
+      font-size: 10px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ---- Feed info in sidebar ---- */
+    .feed-version {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+
     /* ---- Scrollbar ---- */
     .main::-webkit-scrollbar { height: 6px; }
     .main::-webkit-scrollbar-track { background: transparent; }
@@ -596,6 +643,20 @@
         <span class="meta-label">Routes</span>
         <span>{{len .RouteVizs}} shown</span>
       </div>
+      {{if .Feed}}
+        {{if .Feed.HasDates}}
+        <div class="meta-row">
+          <span class="meta-label">Effective</span>
+          <span>{{formatDate .Feed.StartDate}} – {{formatDate .Feed.EndDate}}</span>
+        </div>
+        {{end}}
+        {{if .Feed.Version}}
+        <div class="meta-row">
+          <span class="meta-label">Version</span>
+          <span>{{.Feed.Version}}</span>
+        </div>
+        {{end}}
+      {{end}}
     </div>
     {{end}}
   </div>
@@ -669,6 +730,22 @@
         <div class="route-type-pill">{{routeTypeName .RouteType}}</div>
       </div>
 
+      <!-- Freshness indicator -->
+      {{if .HasDates}}
+      <div class="freshness-row">
+        {{if .ExpiringSoon}}
+          <div class="freshness-dot expiring"></div>
+          <span class="freshness-text">Expiring {{formatDateFull .EffectiveTo}}</span>
+        {{else if .IsActive}}
+          <div class="freshness-dot active"></div>
+          <span class="freshness-text">Active since {{formatDate .EffectiveFrom}} &bull; thru {{formatDate .EffectiveTo}}</span>
+        {{else}}
+          <div class="freshness-dot inactive"></div>
+          <span class="freshness-text">{{formatDate .EffectiveFrom}} – {{formatDate .EffectiveTo}}</span>
+        {{end}}
+      </div>
+      {{end}}
+
       <!-- Direction labels -->
       <div class="dir-labels">
         <div class="dir-label dir-label-0" title="{{index .DirectionLabels 0}}">{{index .DirectionLabels 0}}</div>
@@ -679,7 +756,7 @@
       <!-- Hour rows -->
       <div class="hour-rows">
         {{range .HourRows}}
-        <div class="hour-row">
+        <div class="hour-row{{if .Empty}} empty-hour{{end}}">
           <div class="dir-blocks dir-blocks-0">
             {{range .Dir0Squares}}<div class="sq"></div>{{end}}
             {{if gt .Dir0Extra 0}}<span class="extra-count">+{{.Dir0Extra}}</span>{{end}}
