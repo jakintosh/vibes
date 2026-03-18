@@ -412,23 +412,43 @@
       justify-content: flex-start;
     }
 
+    .dir-blocks-0,
+    .dir-blocks-1 {
+      position: relative;
+    }
+
+    /* 10-minute headway threshold line at 6 trips */
+    .dir-blocks-0::after,
+    .dir-blocks-1::before {
+      content: '';
+      position: absolute;
+      top: -1px;
+      bottom: -1px;
+      width: 0;
+      border-left: 1.5px dashed rgba(0,0,0,0.2);
+      pointer-events: none;
+    }
+
+    .dir-blocks-0::after {
+      right: calc(6 * (var(--sq) + var(--sq-gap)) - var(--sq-gap) / 2);
+    }
+
+    .dir-blocks-1::before {
+      left: calc(6 * (var(--sq) + var(--sq-gap)) - var(--sq-gap) / 2);
+    }
+
     .sq {
       width: var(--sq);
       height: var(--sq);
       border-radius: 2px;
       flex-shrink: 0;
+      background: var(--sq-color);
     }
-
-    /* Alternate square colors every other square for visual texture */
-    .dir-blocks-0 .sq:nth-child(odd)  { background: var(--sq-color); }
-    .dir-blocks-0 .sq:nth-child(even) { background: var(--sq-color-alt); }
-    .dir-blocks-1 .sq:nth-child(odd)  { background: var(--sq-color); }
-    .dir-blocks-1 .sq:nth-child(even) { background: var(--sq-color-alt); }
 
     .extra-count {
       font-size: 9px;
       font-weight: 700;
-      color: var(--sq-color-alt);
+      color: var(--sq-color);
       flex-shrink: 0;
     }
 
@@ -705,8 +725,7 @@
   <div class="legend">
     <div class="legend-item">
       <div class="legend-sq legend-sq-1"></div>
-      <div class="legend-sq legend-sq-2"></div>
-      <span>1 departure per square &bull; alternating colors for readability &bull; max 15 shown per hour</span>
+      <span>1 departure per square &bull; max 15 shown per hour &bull; dashed line = 10-min headway threshold (6 trips/hr)</span>
     </div>
   </div>
 
