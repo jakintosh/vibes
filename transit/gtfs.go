@@ -47,12 +47,22 @@ type Trip struct {
 	DirectionID int // 0 or 1
 }
 
+// FeedInfo holds feed-level metadata from feed_info.txt.
+type FeedInfo struct {
+	PublisherName string
+	Version       string
+	StartDate     time.Time
+	EndDate       time.Time
+	HasDates      bool
+}
+
 // GTFSData holds all parsed GTFS data and pre-built visualization data.
 type GTFSData struct {
-	Agencies    []Agency
-	Routes      []Route
-	RouteVizs   []RouteViz
-	FetchedAt   time.Time
+	Agencies  []Agency
+	Routes    []Route
+	RouteVizs []RouteViz
+	FetchedAt time.Time
+	Feed      *FeedInfo
 }
 
 // RouteViz is the visualization-ready struct for a single route.
@@ -67,6 +77,11 @@ type RouteViz struct {
 	DirectionLabels [2]string
 	HourRows        []HourRow
 	Totals          [2]int
+	EffectiveFrom   time.Time
+	EffectiveTo     time.Time
+	HasDates        bool
+	IsActive        bool // today is within the effective date range
+	ExpiringSoon    bool // active but expiring within 30 days
 }
 
 // HourRow represents one hour of service for both directions.
@@ -79,6 +94,7 @@ type HourRow struct {
 	Dir1Extra   int
 	Dir0Count   int
 	Dir1Count   int
+	Empty       bool // no trips in either direction this hour
 }
 
 const maxSquares = 15
@@ -86,6 +102,77 @@ const minHour = 4
 const maxHour = 27 // inclusive; covers 4am to 3am next day
 
 // ---- GTFS fetching and parsing ----
+
+// parseGTFSDate parses GTFS YYYYMMDD date format.
+func parseGTFSDate(s string) (time.Time, bool) {
+	t, err := time.Parse("20060102", strings.TrimSpace(s))
+	return t, err == nil
+}
+
+// parseFeedInfo reads feed_info.txt and returns feed-level metadata.
+func parseFeedInfo(zr *zip.Reader) *FeedInfo {
+	zf := findFile(zr, "feed_info.txt")
+	if zf == nil {
+		return nil
+	}
+	header, rows, err := readCSV(zf)
+	if err != nil || len(rows) == 0 {
+		return nil
+	}
+	row := rows[0]
+	fi := &FeedInfo{
+		PublisherName: getField(row, colIndex(header, "feed_publisher_name")),
+		Version:       getField(row, colIndex(header, "feed_version")),
+	}
+	if t, ok := parseGTFSDate(getField(row, colIndex(header, "feed_start_date"))); ok {
+		fi.StartDate = t
+		fi.HasDates = true
+	}
+	if t, ok := parseGTFSDate(getField(row, colIndex(header, "feed_end_date"))); ok {
+		fi.EndDate = t
+	}
+	return fi
+}
+
+// parseCalendarDateRanges returns serviceID -> [start, end] from calendar.txt.
+func parseCalendarDateRanges(zr *zip.Reader) map[string][2]time.Time {
+	zf := findFile(zr, "calendar.txt")
+	if zf == nil {
+		return nil
+	}
+	header, rows, err := readCSV(zf)
+	if err != nil {
+		return nil
+	}
+	idIdx := colIndex(header, "service_id")
+	startIdx := colIndex(header, "start_date")
+	endIdx := colIndex(header, "end_date")
+	if idIdx < 0 || startIdx < 0 || endIdx < 0 {
+		return nil
+	}
+	result := make(map[string][2]time.Time)
+	for _, row := range rows {
+		id := getField(row, idIdx)
+		start, okS := parseGTFSDate(getField(row, startIdx))
+		end, okE := parseGTFSDate(getField(row, endIdx))
+		if okS && okE {
+			result[id] = [2]time.Time{start, end}
+		}
+	}
+	return result
+}
+
+// buildRouteServiceIDs maps each routeID to the set of serviceIDs used by its trips.
+func buildRouteServiceIDs(trips map[string]Trip) map[string]map[string]bool {
+	result := make(map[string]map[string]bool)
+	for _, trip := range trips {
+		if result[trip.RouteID] == nil {
+			result[trip.RouteID] = make(map[string]bool)
+		}
+		result[trip.RouteID][trip.ServiceID] = true
+	}
+	return result
+}
 
 func fetchGTFS(url string) (*GTFSData, error) {
 	resp, err := http.Get(url)
@@ -110,17 +197,21 @@ func fetchGTFS(url string) (*GTFSData, error) {
 
 	agencies := parseAgencies(zr)
 	routes := parseRoutes(zr)
+	feedInfo := parseFeedInfo(zr)
 	serviceIDs := findWeekdayServiceIDs(zr)
+	calendarRanges := parseCalendarDateRanges(zr)
 	trips, dirHeadsigns := parseTrips(zr, serviceIDs)
 	hourCounts := buildHourCounts(zr, trips)
+	routeServiceIDs := buildRouteServiceIDs(trips)
 
-	vizs := buildRouteVizs(routes, hourCounts, dirHeadsigns)
+	vizs := buildRouteVizs(routes, hourCounts, dirHeadsigns, calendarRanges, routeServiceIDs)
 
 	return &GTFSData{
 		Agencies:  agencies,
 		Routes:    routes,
 		RouteVizs: vizs,
 		FetchedAt: time.Now(),
+		Feed:      feedInfo,
 	}, nil
 }
 
@@ -513,7 +604,8 @@ func isLightColor(hex string) bool {
 	return (r*299+g*587+b*114)/1000 > 128
 }
 
-func buildRouteVizs(routes []Route, hourCounts map[string][2]map[int]int, dirHeadsigns map[string]map[int]map[string]int) []RouteViz {
+func buildRouteVizs(routes []Route, hourCounts map[string][2]map[int]int, dirHeadsigns map[string]map[int]map[string]int, calendarRanges map[string][2]time.Time, routeServiceIDs map[string]map[string]bool) []RouteViz {
+	now := time.Now().Truncate(24 * time.Hour)
 	var vizs []RouteViz
 	for idx, route := range routes {
 		counts, ok := hourCounts[route.ID]
@@ -533,17 +625,38 @@ func buildRouteVizs(routes []Route, hourCounts map[string][2]map[int]int, dirHea
 			}
 		}
 
+		// Compute effective date range from calendar entries for this route's service IDs.
+		var effectiveFrom, effectiveTo time.Time
+		hasDates := false
+		if svcIDs, ok := routeServiceIDs[route.ID]; ok {
+			for svcID := range svcIDs {
+				if dr, ok := calendarRanges[svcID]; ok {
+					if !hasDates || dr[0].Before(effectiveFrom) {
+						effectiveFrom = dr[0]
+					}
+					if !hasDates || dr[1].After(effectiveTo) {
+						effectiveTo = dr[1]
+					}
+					hasDates = true
+				}
+			}
+		}
+		isActive := hasDates && !now.Before(effectiveFrom) && !now.After(effectiveTo)
+		expiringSoon := isActive && effectiveTo.Sub(now) <= 30*24*time.Hour
+
 		var hourRows []HourRow
 		totals := [2]int{0, 0}
+		hasAnyTrips := false
 
 		for h := minHour; h <= maxHour; h++ {
 			c0 := counts[0][h]
 			c1 := counts[1][h]
-			if c0 == 0 && c1 == 0 {
-				continue
+			empty := c0 == 0 && c1 == 0
+			if !empty {
+				hasAnyTrips = true
+				totals[0] += c0
+				totals[1] += c1
 			}
-			totals[0] += c0
-			totals[1] += c1
 
 			sq0 := c0
 			extra0 := 0
@@ -567,10 +680,11 @@ func buildRouteVizs(routes []Route, hourCounts map[string][2]map[int]int, dirHea
 				Dir1Extra:   extra1,
 				Dir0Count:   c0,
 				Dir1Count:   c1,
+				Empty:       empty,
 			})
 		}
 
-		if len(hourRows) == 0 {
+		if !hasAnyTrips {
 			continue
 		}
 
@@ -590,6 +704,11 @@ func buildRouteVizs(routes []Route, hourCounts map[string][2]map[int]int, dirHea
 			DirectionLabels: dirLabels,
 			HourRows:        hourRows,
 			Totals:          totals,
+			EffectiveFrom:   effectiveFrom,
+			EffectiveTo:     effectiveTo,
+			HasDates:        hasDates,
+			IsActive:        isActive,
+			ExpiringSoon:    expiringSoon,
 		})
 	}
 	return vizs

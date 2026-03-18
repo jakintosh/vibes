@@ -15,6 +15,7 @@ var templateFS embed.FS
 type PageData struct {
 	Agencies  []Agency
 	RouteVizs []RouteViz
+	Feed      *FeedInfo
 	FeedURL   string
 	FetchedAt string
 }
@@ -42,6 +43,12 @@ func routeTypeName(t int) string {
 func startServer(data *GTFSData, feedURL string, port int) error {
 	funcMap := template.FuncMap{
 		"routeTypeName": routeTypeName,
+		"formatDate": func(t time.Time) string {
+			return t.Format("Jan 2006")
+		},
+		"formatDateFull": func(t time.Time) string {
+			return t.Format("Jan 2, 2006")
+		},
 	}
 	tmpl, err := template.New("index.html").Funcs(funcMap).ParseFS(templateFS, "templates/index.html")
 	if err != nil {
@@ -51,6 +58,7 @@ func startServer(data *GTFSData, feedURL string, port int) error {
 	pageData := PageData{
 		Agencies:  data.Agencies,
 		RouteVizs: data.RouteVizs,
+		Feed:      data.Feed,
 		FeedURL:   feedURL,
 		FetchedAt: data.FetchedAt.Format(time.RFC1123),
 	}
