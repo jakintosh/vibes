@@ -15,7 +15,7 @@
       --max-cols: 15;
       --dir-width: calc(var(--max-cols) * (var(--sq) + var(--sq-gap)));
       --hour-col-width: 38px;
-      --card-width: calc(var(--dir-width) * 2 + var(--hour-col-width) + 24px);
+      --card-width: calc(var(--dir-width) * 2 + var(--hour-col-width) + 32px);
       --bg: #f2f4f7;
       --card-bg: #ffffff;
       --text: #1a2233;
@@ -293,6 +293,7 @@
 
     body.sidebar-collapsed .main {
       margin-left: 0;
+      padding-left: 52px;
     }
 
     .main-header {
@@ -449,7 +450,6 @@
       align-items: center;
       width: var(--dir-width);
       gap: var(--sq-gap);
-      flex-shrink: 0;
     }
 
     .dir-blocks-0 {
