@@ -13,11 +13,12 @@ import (
 var templateFS embed.FS
 
 type PageData struct {
-	Agencies  []Agency
-	RouteVizs []RouteViz
-	Feed      *FeedInfo
-	FeedURL   string
-	FetchedAt string
+	Agencies   []Agency
+	RouteVizs  []RouteViz
+	Feed       *FeedInfo
+	FeedURL    string
+	FetchedAt  string
+	HasWeekend bool
 }
 
 var routeTypeNames = map[int]string{
@@ -56,11 +57,12 @@ func startServer(data *GTFSData, feedURL string, port int) error {
 	}
 
 	pageData := PageData{
-		Agencies:  data.Agencies,
-		RouteVizs: data.RouteVizs,
-		Feed:      data.Feed,
-		FeedURL:   feedURL,
-		FetchedAt: data.FetchedAt.Format(time.RFC1123),
+		Agencies:   data.Agencies,
+		RouteVizs:  data.RouteVizs,
+		Feed:       data.Feed,
+		FeedURL:    feedURL,
+		FetchedAt:  data.FetchedAt.Format(time.RFC1123),
+		HasWeekend: data.HasWeekend,
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
