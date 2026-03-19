@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -41,7 +42,7 @@ func routeTypeName(t int) string {
 	return "Transit"
 }
 
-func startServer(data *GTFSData, feedURL string, port int) error {
+func buildTemplate() (*template.Template, error) {
 	funcMap := template.FuncMap{
 		"routeTypeName": routeTypeName,
 		"formatDate": func(t time.Time) string {
@@ -51,12 +52,11 @@ func startServer(data *GTFSData, feedURL string, port int) error {
 			return t.Format("Jan 2, 2006")
 		},
 	}
-	tmpl, err := template.New("index.html").Funcs(funcMap).ParseFS(templateFS, "templates/index.html")
-	if err != nil {
-		return fmt.Errorf("parsing template: %w", err)
-	}
+	return template.New("index.html").Funcs(funcMap).ParseFS(templateFS, "templates/index.html")
+}
 
-	pageData := PageData{
+func buildPageData(data *GTFSData, feedURL string) PageData {
+	return PageData{
 		Agencies:   data.Agencies,
 		RouteVizs:  data.RouteVizs,
 		Feed:       data.Feed,
@@ -64,6 +64,31 @@ func startServer(data *GTFSData, feedURL string, port int) error {
 		FetchedAt:  data.FetchedAt.Format(time.RFC1123),
 		HasWeekend: data.HasWeekend,
 	}
+}
+
+func renderToFile(data *GTFSData, feedURL string, path string) error {
+	tmpl, err := buildTemplate()
+	if err != nil {
+		return fmt.Errorf("parsing template: %w", err)
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("creating file: %w", err)
+	}
+	defer f.Close()
+	if err := tmpl.Execute(f, buildPageData(data, feedURL)); err != nil {
+		return fmt.Errorf("rendering template: %w", err)
+	}
+	return nil
+}
+
+func startServer(data *GTFSData, feedURL string, port int) error {
+	tmpl, err := buildTemplate()
+	if err != nil {
+		return fmt.Errorf("parsing template: %w", err)
+	}
+
+	pageData := buildPageData(data, feedURL)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
