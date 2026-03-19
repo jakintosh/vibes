@@ -58,11 +58,12 @@ type FeedInfo struct {
 
 // GTFSData holds all parsed GTFS data and pre-built visualization data.
 type GTFSData struct {
-	Agencies  []Agency
-	Routes    []Route
-	RouteVizs []RouteViz
-	FetchedAt time.Time
-	Feed      *FeedInfo
+	Agencies   []Agency
+	Routes     []Route
+	RouteVizs  []RouteViz
+	FetchedAt  time.Time
+	Feed       *FeedInfo
+	HasWeekend bool // true if any weekend service was found
 }
 
 // RouteViz is the visualization-ready struct for a single route.
@@ -77,6 +78,9 @@ type RouteViz struct {
 	DirectionLabels [2]string
 	HourRows        []HourRow
 	Totals          [2]int
+	WeekendHourRows []HourRow
+	WeekendTotals   [2]int
+	HasWeekend      bool
 	EffectiveFrom   time.Time
 	EffectiveTo     time.Time
 	HasDates        bool
@@ -198,20 +202,38 @@ func fetchGTFS(url string) (*GTFSData, error) {
 	agencies := parseAgencies(zr)
 	routes := parseRoutes(zr)
 	feedInfo := parseFeedInfo(zr)
-	serviceIDs := findWeekdayServiceIDs(zr)
 	calendarRanges := parseCalendarDateRanges(zr)
-	trips, dirHeadsigns := parseTrips(zr, serviceIDs)
-	hourCounts := buildHourCounts(zr, trips)
-	routeServiceIDs := buildRouteServiceIDs(trips)
 
-	vizs := buildRouteVizs(routes, hourCounts, dirHeadsigns, calendarRanges, routeServiceIDs)
+	weekdayIDs := findWeekdayServiceIDs(zr)
+	weekdayTrips, dirHeadsigns := parseTrips(zr, weekdayIDs)
+	weekdayCounts := buildHourCounts(zr, weekdayTrips)
+	routeServiceIDs := buildRouteServiceIDs(weekdayTrips)
+
+	weekendIDs := findWeekendServiceIDs(zr)
+	var weekendCounts map[string][2]map[int]int
+	hasWeekend := len(weekendIDs) > 0
+	if hasWeekend {
+		weekendTrips, _ := parseTrips(zr, weekendIDs)
+		weekendCounts = buildHourCounts(zr, weekendTrips)
+	}
+
+	vizs := buildRouteVizs(routes, weekdayCounts, weekendCounts, dirHeadsigns, calendarRanges, routeServiceIDs)
+
+	// Check whether any route actually has weekend data.
+	for _, v := range vizs {
+		if v.HasWeekend {
+			hasWeekend = true
+			break
+		}
+	}
 
 	return &GTFSData{
-		Agencies:  agencies,
-		Routes:    routes,
-		RouteVizs: vizs,
-		FetchedAt: time.Now(),
-		Feed:      feedInfo,
+		Agencies:   agencies,
+		Routes:     routes,
+		RouteVizs:  vizs,
+		FetchedAt:  time.Now(),
+		Feed:       feedInfo,
+		HasWeekend: hasWeekend,
 	}, nil
 }
 
@@ -358,12 +380,11 @@ func parseRoutes(zr *zip.Reader) []Route {
 	return routes
 }
 
-// findWeekdayServiceIDs returns a set of service_ids that operate on weekdays.
-// If calendar.txt is unavailable, returns nil (all service IDs allowed).
-func findWeekdayServiceIDs(zr *zip.Reader) map[string]bool {
+// findServiceIDsWhere returns service IDs from calendar.txt where any of the given
+// day columns equal "1". Returns nil if no matches or calendar.txt is missing.
+func findServiceIDsWhere(zr *zip.Reader, days ...string) map[string]bool {
 	zf := findFile(zr, "calendar.txt")
 	if zf == nil {
-		log.Println("No calendar.txt found; using all service IDs")
 		return nil
 	}
 	header, rows, err := readCSV(zf)
@@ -372,24 +393,42 @@ func findWeekdayServiceIDs(zr *zip.Reader) map[string]bool {
 		return nil
 	}
 	idIdx := colIndex(header, "service_id")
-	monIdx := colIndex(header, "monday")
-
 	if idIdx < 0 {
 		return nil
 	}
-
+	dayIdxs := make([]int, len(days))
+	for i, d := range days {
+		dayIdxs[i] = colIndex(header, d)
+	}
 	ids := make(map[string]bool)
 	for _, row := range rows {
 		id := getField(row, idIdx)
-		if monIdx < 0 || getField(row, monIdx) == "1" {
-			ids[id] = true
+		for _, di := range dayIdxs {
+			if di >= 0 && getField(row, di) == "1" {
+				ids[id] = true
+				break
+			}
 		}
 	}
 	if len(ids) == 0 {
-		// Fallback: accept all
 		return nil
 	}
 	return ids
+}
+
+// findWeekdayServiceIDs returns service IDs that run on Mondays (proxy for weekday service).
+// If calendar.txt is unavailable, returns nil (all service IDs allowed).
+func findWeekdayServiceIDs(zr *zip.Reader) map[string]bool {
+	ids := findServiceIDsWhere(zr, "monday")
+	if ids == nil {
+		log.Println("No calendar.txt or no weekday service found; using all service IDs")
+	}
+	return ids
+}
+
+// findWeekendServiceIDs returns service IDs that run on Saturday or Sunday.
+func findWeekendServiceIDs(zr *zip.Reader) map[string]bool {
+	return findServiceIDsWhere(zr, "saturday", "sunday")
 }
 
 // parseTrips returns a map of tripID -> Trip filtered to serviceIDs,
@@ -604,13 +643,49 @@ func isLightColor(hex string) bool {
 	return (r*299+g*587+b*114)/1000 > 128
 }
 
-func buildRouteVizs(routes []Route, hourCounts map[string][2]map[int]int, dirHeadsigns map[string]map[int]map[string]int, calendarRanges map[string][2]time.Time, routeServiceIDs map[string]map[string]bool) []RouteViz {
+// buildHourRows converts per-direction hour counts into HourRow slice and totals.
+func buildHourRows(counts [2]map[int]int) (rows []HourRow, totals [2]int, hasTrips bool) {
+	for h := minHour; h <= maxHour; h++ {
+		c0 := counts[0][h]
+		c1 := counts[1][h]
+		empty := c0 == 0 && c1 == 0
+		if !empty {
+			hasTrips = true
+			totals[0] += c0
+			totals[1] += c1
+		}
+		sq0, extra0 := c0, 0
+		if sq0 > maxSquares {
+			extra0 = sq0 - maxSquares
+			sq0 = maxSquares
+		}
+		sq1, extra1 := c1, 0
+		if sq1 > maxSquares {
+			extra1 = sq1 - maxSquares
+			sq1 = maxSquares
+		}
+		rows = append(rows, HourRow{
+			Hour:        h,
+			HourDisplay: hourDisplay(h),
+			Dir0Squares: make([]struct{}, sq0),
+			Dir1Squares: make([]struct{}, sq1),
+			Dir0Extra:   extra0,
+			Dir1Extra:   extra1,
+			Dir0Count:   c0,
+			Dir1Count:   c1,
+			Empty:       empty,
+		})
+	}
+	return
+}
+
+func buildRouteVizs(routes []Route, hourCounts, weekendHourCounts map[string][2]map[int]int, dirHeadsigns map[string]map[int]map[string]int, calendarRanges map[string][2]time.Time, routeServiceIDs map[string]map[string]bool) []RouteViz {
 	now := time.Now().Truncate(24 * time.Hour)
 	var vizs []RouteViz
 	for idx, route := range routes {
 		counts, ok := hourCounts[route.ID]
 		if !ok {
-			continue // no trips for this route
+			continue // no weekday trips for this route
 		}
 
 		bg, fg := routeColor(route, idx)
@@ -644,48 +719,18 @@ func buildRouteVizs(routes []Route, hourCounts map[string][2]map[int]int, dirHea
 		isActive := hasDates && !now.Before(effectiveFrom) && !now.After(effectiveTo)
 		expiringSoon := isActive && effectiveTo.Sub(now) <= 30*24*time.Hour
 
-		var hourRows []HourRow
-		totals := [2]int{0, 0}
-		hasAnyTrips := false
-
-		for h := minHour; h <= maxHour; h++ {
-			c0 := counts[0][h]
-			c1 := counts[1][h]
-			empty := c0 == 0 && c1 == 0
-			if !empty {
-				hasAnyTrips = true
-				totals[0] += c0
-				totals[1] += c1
-			}
-
-			sq0 := c0
-			extra0 := 0
-			if sq0 > maxSquares {
-				extra0 = sq0 - maxSquares
-				sq0 = maxSquares
-			}
-			sq1 := c1
-			extra1 := 0
-			if sq1 > maxSquares {
-				extra1 = sq1 - maxSquares
-				sq1 = maxSquares
-			}
-
-			hourRows = append(hourRows, HourRow{
-				Hour:        h,
-				HourDisplay: hourDisplay(h),
-				Dir0Squares: make([]struct{}, sq0),
-				Dir1Squares: make([]struct{}, sq1),
-				Dir0Extra:   extra0,
-				Dir1Extra:   extra1,
-				Dir0Count:   c0,
-				Dir1Count:   c1,
-				Empty:       empty,
-			})
+		hourRows, totals, hasTrips := buildHourRows(counts)
+		if !hasTrips {
+			continue
 		}
 
-		if !hasAnyTrips {
-			continue
+		var weekendRows []HourRow
+		var weekendTotals [2]int
+		hasWeekend := false
+		if wCounts, ok := weekendHourCounts[route.ID]; ok {
+			var wHasTrips bool
+			weekendRows, weekendTotals, wHasTrips = buildHourRows(wCounts)
+			hasWeekend = wHasTrips
 		}
 
 		displayName := route.ShortName
@@ -704,6 +749,9 @@ func buildRouteVizs(routes []Route, hourCounts map[string][2]map[int]int, dirHea
 			DirectionLabels: dirLabels,
 			HourRows:        hourRows,
 			Totals:          totals,
+			WeekendHourRows: weekendRows,
+			WeekendTotals:   weekendTotals,
+			HasWeekend:      hasWeekend,
 			EffectiveFrom:   effectiveFrom,
 			EffectiveTo:     effectiveTo,
 			HasDates:        hasDates,

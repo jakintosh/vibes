@@ -9,6 +9,7 @@
 
     :root {
       --sidebar-width: 280px;
+      --sidebar-transition: 0.22s ease;
       --sq: 11px;
       --sq-gap: 2px;
       --max-cols: 15;
@@ -45,6 +46,12 @@
       flex-direction: column;
       z-index: 100;
       box-shadow: 2px 0 12px rgba(0,0,0,0.06);
+      transform: translateX(0);
+      transition: transform var(--sidebar-transition);
+    }
+
+    body.sidebar-collapsed .sidebar {
+      transform: translateX(calc(-1 * var(--sidebar-width)));
     }
 
     .sidebar-header {
@@ -238,6 +245,42 @@
       line-height: 1.5;
     }
 
+    /* ---- Sidebar toggle button ---- */
+    .sidebar-toggle {
+      position: fixed;
+      top: 14px;
+      left: calc(var(--sidebar-width) - 14px);
+      z-index: 200;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      box-shadow: 0 1px 6px rgba(0,0,0,0.12);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: left var(--sidebar-transition), background 0.15s;
+      padding: 0;
+    }
+
+    .sidebar-toggle:hover { background: var(--bg); }
+
+    body.sidebar-collapsed .sidebar-toggle {
+      left: 8px;
+    }
+
+    .sidebar-toggle svg {
+      width: 14px; height: 14px;
+      fill: var(--muted);
+      transition: transform 0.22s ease;
+    }
+
+    body.sidebar-collapsed .sidebar-toggle svg {
+      transform: rotate(180deg);
+    }
+
     /* ---- Main content ---- */
     .main {
       margin-left: var(--sidebar-width);
@@ -245,6 +288,11 @@
       overflow-x: auto;
       min-height: 100vh;
       padding: 32px 24px 48px;
+      transition: margin-left var(--sidebar-transition);
+    }
+
+    body.sidebar-collapsed .main {
+      margin-left: 0;
     }
 
     .main-header {
@@ -412,29 +460,31 @@
       justify-content: flex-start;
     }
 
-    .dir-blocks-0,
-    .dir-blocks-1 {
+    /* 10-minute headway threshold line at 6 trips — spans full hour-rows height */
+    .hour-rows {
       position: relative;
     }
 
-    /* 10-minute headway threshold line at 6 trips */
-    .dir-blocks-0::after,
-    .dir-blocks-1::before {
+    .hour-rows::before,
+    .hour-rows::after {
       content: '';
       position: absolute;
-      top: -1px;
-      bottom: -1px;
+      top: 0;
+      bottom: 0;
       width: 0;
-      border-left: 1.5px dashed rgba(0,0,0,0.2);
+      border-left: 1.5px dashed rgba(0,0,0,0.18);
       pointer-events: none;
+      z-index: 1;
     }
 
-    .dir-blocks-0::after {
-      right: calc(6 * (var(--sq) + var(--sq-gap)) - var(--sq-gap) / 2);
+    /* Dir-0 line: right edge of the 6th square slot, measuring from left of hour-rows */
+    .hour-rows::before {
+      left: calc(var(--dir-width) - 6 * (var(--sq) + var(--sq-gap)) + var(--sq-gap) / 2);
     }
 
-    .dir-blocks-1::before {
-      left: calc(6 * (var(--sq) + var(--sq-gap)) - var(--sq-gap) / 2);
+    /* Dir-1 line: left edge of the 6th square slot from center, measuring from left */
+    .hour-rows::after {
+      left: calc(var(--dir-width) + var(--hour-col-width) + 6 * (var(--sq) + var(--sq-gap)) - var(--sq-gap) / 2);
     }
 
     .sq {
@@ -561,13 +611,25 @@
       color: var(--border);
     }
 
+    /* ---- Service mode toggle (weekday/weekend) ---- */
+    .service-toggle {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .btn.btn-mode-active {
+      background: var(--sq-color);
+      border-color: var(--sq-color);
+      color: #fff;
+    }
+
     /* ---- Freshness indicator ---- */
     .freshness-row {
       display: flex;
       align-items: center;
-      gap: 6px;
-      margin-top: 8px;
-      margin-bottom: 2px;
+      gap: 5px;
+      margin-top: 3px;
     }
 
     .freshness-dot {
@@ -614,6 +676,13 @@
   </style>
 </head>
 <body>
+
+<!-- Sidebar toggle button -->
+<button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">
+  <svg viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
+    <path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </svg>
+</button>
 
 <!-- ========== SIDEBAR ========== -->
 <aside class="sidebar">
@@ -682,6 +751,13 @@
   </div>
 
   <div class="sidebar-controls">
+    {{if .HasWeekend}}
+    <div class="controls-title">Service</div>
+    <div class="service-toggle">
+      <button class="btn btn-mode-active" id="btn-weekday">Weekday</button>
+      <button class="btn" id="btn-weekend">Weekend</button>
+    </div>
+    {{end}}
     <div class="controls-title">Routes</div>
     <div class="control-buttons">
       <button class="btn" id="btn-all">All</button>
@@ -741,25 +817,23 @@
         <div class="card-route-info">
           <div class="card-route-longname" title="{{.LongName}}">{{.LongName}}</div>
           {{if .Desc}}<div class="card-route-desc">{{.Desc}}</div>{{end}}
+          {{if .HasDates}}
+          <div class="freshness-row">
+            {{if .ExpiringSoon}}
+              <div class="freshness-dot expiring"></div>
+              <span class="freshness-text">Expiring {{formatDateFull .EffectiveTo}}</span>
+            {{else if .IsActive}}
+              <div class="freshness-dot active"></div>
+              <span class="freshness-text">Since {{formatDate .EffectiveFrom}} &bull; thru {{formatDate .EffectiveTo}}</span>
+            {{else}}
+              <div class="freshness-dot inactive"></div>
+              <span class="freshness-text">{{formatDate .EffectiveFrom}} – {{formatDate .EffectiveTo}}</span>
+            {{end}}
+          </div>
+          {{end}}
         </div>
         <div class="route-type-pill">{{routeTypeName .RouteType}}</div>
       </div>
-
-      <!-- Freshness indicator -->
-      {{if .HasDates}}
-      <div class="freshness-row">
-        {{if .ExpiringSoon}}
-          <div class="freshness-dot expiring"></div>
-          <span class="freshness-text">Expiring {{formatDateFull .EffectiveTo}}</span>
-        {{else if .IsActive}}
-          <div class="freshness-dot active"></div>
-          <span class="freshness-text">Active since {{formatDate .EffectiveFrom}} &bull; thru {{formatDate .EffectiveTo}}</span>
-        {{else}}
-          <div class="freshness-dot inactive"></div>
-          <span class="freshness-text">{{formatDate .EffectiveFrom}} – {{formatDate .EffectiveTo}}</span>
-        {{end}}
-      </div>
-      {{end}}
 
       <!-- Direction labels -->
       <div class="dir-labels">
@@ -768,8 +842,8 @@
         <div class="dir-label dir-label-1" title="{{index .DirectionLabels 1}}">{{index .DirectionLabels 1}}</div>
       </div>
 
-      <!-- Hour rows -->
-      <div class="hour-rows">
+      <!-- Hour rows (weekday) -->
+      <div class="hour-rows service-rows" data-service="weekday">
         {{range .HourRows}}
         <div class="hour-row{{if .Empty}} empty-hour{{end}}">
           <div class="dir-blocks dir-blocks-0">
@@ -785,8 +859,27 @@
         {{end}}
       </div>
 
-      <!-- Totals -->
-      <div class="route-totals">
+      {{if .HasWeekend}}
+      <!-- Hour rows (weekend) -->
+      <div class="hour-rows service-rows" data-service="weekend" style="display:none">
+        {{range .WeekendHourRows}}
+        <div class="hour-row{{if .Empty}} empty-hour{{end}}">
+          <div class="dir-blocks dir-blocks-0">
+            {{range .Dir0Squares}}<div class="sq"></div>{{end}}
+            {{if gt .Dir0Extra 0}}<span class="extra-count">+{{.Dir0Extra}}</span>{{end}}
+          </div>
+          <div class="hour-label">{{.HourDisplay}}</div>
+          <div class="dir-blocks dir-blocks-1">
+            {{range .Dir1Squares}}<div class="sq"></div>{{end}}
+            {{if gt .Dir1Extra 0}}<span class="extra-count">+{{.Dir1Extra}}</span>{{end}}
+          </div>
+        </div>
+        {{end}}
+      </div>
+      {{end}}
+
+      <!-- Totals (weekday) -->
+      <div class="route-totals service-totals" data-service="weekday">
         <div class="total-block total-block-0">
           <div class="total-circle">{{index .Totals 0}}</div>
           <div class="total-label">trips/day</div>
@@ -797,6 +890,21 @@
           <div class="total-label">trips/day</div>
         </div>
       </div>
+
+      {{if .HasWeekend}}
+      <!-- Totals (weekend) -->
+      <div class="route-totals service-totals" data-service="weekend" style="display:none">
+        <div class="total-block total-block-0">
+          <div class="total-circle">{{index .WeekendTotals 0}}</div>
+          <div class="total-label">trips/day</div>
+        </div>
+        <div class="total-spacer"></div>
+        <div class="total-block total-block-1">
+          <div class="total-circle">{{index .WeekendTotals 1}}</div>
+          <div class="total-label">trips/day</div>
+        </div>
+      </div>
+      {{end}}
 
     </div>
     {{end}}
@@ -810,19 +918,44 @@
 
 <script>
   (function() {
-    const toggles = document.querySelectorAll('.route-toggle');
-    const labels  = document.querySelectorAll('.route-filter-item');
-    const emptyState = document.getElementById('empty-state');
+    // ---- Sidebar toggle ----
+    var sidebarToggle = document.getElementById('sidebar-toggle');
+    if (sidebarToggle) {
+      sidebarToggle.addEventListener('click', function() {
+        document.body.classList.toggle('sidebar-collapsed');
+      });
+    }
+
+    // ---- Service mode toggle (weekday / weekend) ----
+    var btnWeekday = document.getElementById('btn-weekday');
+    var btnWeekend = document.getElementById('btn-weekend');
+    var serviceMode = 'weekday';
+
+    function setServiceMode(mode) {
+      serviceMode = mode;
+      document.querySelectorAll('.service-rows, .service-totals').forEach(function(el) {
+        el.style.display = el.dataset.service === mode ? '' : 'none';
+      });
+      if (btnWeekday) btnWeekday.classList.toggle('btn-mode-active', mode === 'weekday');
+      if (btnWeekend) btnWeekend.classList.toggle('btn-mode-active', mode === 'weekend');
+    }
+
+    if (btnWeekday) btnWeekday.addEventListener('click', function() { setServiceMode('weekday'); });
+    if (btnWeekend) btnWeekend.addEventListener('click', function() { setServiceMode('weekend'); });
+
+    // ---- Route visibility toggles ----
+    var toggles = document.querySelectorAll('.route-toggle');
+    var emptyState = document.getElementById('empty-state');
 
     function updateEmpty() {
-      const anyVisible = [...document.querySelectorAll('.route-card:not(.hidden)')].length > 0;
+      var anyVisible = document.querySelectorAll('.route-card:not(.hidden)').length > 0;
       emptyState.style.display = anyVisible ? 'none' : 'flex';
     }
 
     toggles.forEach(function(cb) {
       cb.addEventListener('change', function() {
-        const card  = document.getElementById('card-' + cb.value);
-        const label = document.querySelector('[data-route-id="' + cb.value + '"]');
+        var card  = document.getElementById('card-' + cb.value);
+        var label = document.querySelector('[data-route-id="' + cb.value + '"]');
         if (card)  card.classList.toggle('hidden', !cb.checked);
         if (label) label.classList.toggle('unchecked', !cb.checked);
         updateEmpty();
@@ -832,8 +965,8 @@
     document.getElementById('btn-all').addEventListener('click', function() {
       toggles.forEach(function(cb) {
         cb.checked = true;
-        const card  = document.getElementById('card-' + cb.value);
-        const label = document.querySelector('[data-route-id="' + cb.value + '"]');
+        var card  = document.getElementById('card-' + cb.value);
+        var label = document.querySelector('[data-route-id="' + cb.value + '"]');
         if (card)  card.classList.remove('hidden');
         if (label) label.classList.remove('unchecked');
       });
@@ -843,8 +976,8 @@
     document.getElementById('btn-none').addEventListener('click', function() {
       toggles.forEach(function(cb) {
         cb.checked = false;
-        const card  = document.getElementById('card-' + cb.value);
-        const label = document.querySelector('[data-route-id="' + cb.value + '"]');
+        var card  = document.getElementById('card-' + cb.value);
+        var label = document.querySelector('[data-route-id="' + cb.value + '"]');
         if (card)  card.classList.add('hidden');
         if (label) label.classList.add('unchecked');
       });
