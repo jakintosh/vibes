@@ -679,11 +679,213 @@
     .sidebar-routes::-webkit-scrollbar { width: 4px; }
     .sidebar-routes::-webkit-scrollbar-track { background: transparent; }
     .sidebar-routes::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ================================================================
+       MOBILE — all overrides below; desktop layout is untouched above
+       ================================================================ */
+
+    /* Hidden checkbox powering the settings bottom-sheet (CSS-only) */
+    .mob-cfg-check { display: none !important; }
+
+    /* Mobile-only elements: invisible on desktop */
+    .mob-backdrop,
+    .mob-bar,
+    .mob-sheet-handle,
+    .mob-sheet-header { display: none; }
+
+    @media (max-width: 768px) {
+
+      /* ---- CSS vars: shrink squares so the grid fits phone widths ---- */
+      :root {
+        --sq: 9px;
+        --sq-gap: 2px;
+        --max-cols: 11;
+        --hour-col-width: 32px;
+        /* dir-width = 11 * (9+2) = 121px  →  card inner = 121*2+32 = 274px */
+      }
+
+      /* ---- Mobile top bar ---- */
+      .mob-bar {
+        display: flex;
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        height: 52px;
+        background: var(--card-bg);
+        border-bottom: 1px solid var(--border);
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 16px;
+        z-index: 50;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+      }
+
+      .mob-bar-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: calc(100% - 52px);
+      }
+
+      .mob-settings-btn {
+        width: 36px; height: 36px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer;
+        background: var(--bg);
+        flex-shrink: 0;
+        color: var(--muted);
+      }
+
+      /* ---- Dim backdrop ---- */
+      .mob-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.45);
+        z-index: 149;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease;
+      }
+
+      .mob-cfg-check:checked ~ .mob-backdrop {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      /* ---- Sidebar → bottom sheet ---- */
+      .mob-sheet-handle {
+        display: block;
+        width: 36px; height: 4px;
+        border-radius: 2px;
+        background: var(--border);
+        margin: 10px auto 0;
+        flex-shrink: 0;
+      }
+
+      .mob-sheet-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 20px 14px;
+        flex-shrink: 0;
+      }
+
+      .mob-sheet-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+      }
+
+      .mob-sheet-done {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--sq-color);
+        cursor: pointer;
+        padding: 4px 0;
+      }
+
+      .sidebar {
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        height: 78svh;
+        border-right: none;
+        border-top: 1px solid var(--border);
+        border-radius: 20px 20px 0 0;
+        transform: translateY(100%);
+        z-index: 150;
+        box-shadow: 0 -4px 32px rgba(0,0,0,0.14);
+        transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+        /* keep flex-direction: column from desktop */
+      }
+
+      .mob-cfg-check:checked ~ .sidebar {
+        transform: translateY(0);
+      }
+
+      /* Hide the desktop sidebar header section (logo/meta); sheet header replaces it */
+      .sidebar-header { display: none; }
+
+      /* ---- Hide desktop-only chrome ---- */
+      .sidebar-toggle { display: none; }
+      .main-header    { display: none; }
+      .legend         { display: none; }
+
+      /* ---- Main layout: full-height column ---- */
+      .main,
+      body.sidebar-collapsed .main {
+        margin-left: 0;
+        padding: 52px 0 0; /* top = mob-bar height */
+        overflow: hidden;
+        height: 100svh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ---- Routes row: horizontal snap carousel ---- */
+      .routes-row {
+        flex: 1;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        overflow-x: scroll;
+        overflow-y: hidden;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        gap: 12px;
+        padding: 12px 16px;
+        scrollbar-width: none;
+      }
+
+      .routes-row::-webkit-scrollbar { display: none; }
+
+      /* ---- Route cards: full-width snap targets ---- */
+      .route-card {
+        width: calc(100vw - 32px);
+        flex-shrink: 0;
+        scroll-snap-align: center;
+        /* height fills the stretch container */
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        /* tighten inner padding slightly */
+        padding: 16px 14px 14px;
+      }
+
+      .empty-state {
+        min-width: calc(100vw - 32px);
+      }
+    }
   </style>
 </head>
 <body>
 
-<!-- Sidebar toggle button -->
+<!-- Mobile: hidden checkbox drives the settings bottom-sheet via CSS sibling selectors -->
+<input type="checkbox" id="mob-cfg" class="mob-cfg-check">
+
+<!-- Mobile: dim backdrop — clicking it closes the sheet (it IS the label) -->
+<label class="mob-backdrop" for="mob-cfg" aria-hidden="true"></label>
+
+<!-- Mobile: top bar -->
+<header class="mob-bar">
+  <div class="mob-bar-title">
+    {{if .Agencies}}{{(index .Agencies 0).Name}}{{else}}Transit Frequency Visualizer{{end}}
+  </div>
+  <label for="mob-cfg" class="mob-settings-btn" aria-label="Open settings">
+    <svg viewBox="0 0 18 14" fill="none" xmlns="http://www.w3.org/2000/svg" width="18" height="14">
+      <path d="M1 1h16M1 7h16M1 13h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    </svg>
+  </label>
+</header>
+
+<!-- Sidebar toggle button (desktop only) -->
 <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">
   <svg viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg">
     <path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
@@ -692,6 +894,13 @@
 
 <!-- ========== SIDEBAR ========== -->
 <aside class="sidebar">
+  <!-- Mobile-only: drag handle + Done button -->
+  <div class="mob-sheet-handle"></div>
+  <div class="mob-sheet-header">
+    <span class="mob-sheet-title">Settings</span>
+    <label class="mob-sheet-done" for="mob-cfg">Done</label>
+  </div>
+
   <div class="sidebar-header">
     <div class="sidebar-logo">
       <div class="sidebar-logo-icon">
