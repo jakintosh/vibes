@@ -697,11 +697,11 @@
 
       /* ---- CSS vars: shrink squares so the grid fits phone widths ---- */
       :root {
-        --sq: 9px;
+        --sq: 10px;
         --sq-gap: 2px;
         --max-cols: 11;
         --hour-col-width: 32px;
-        /* dir-width = 11 * (9+2) = 121px  →  card inner = 121*2+32 = 274px */
+        /* dir-width = 11 * (10+2) = 132px  →  viz = 132*2+32 = 296px (safe on 375px+) */
       }
 
       /* ---- Mobile top bar ---- */
@@ -857,6 +857,16 @@
         overscroll-behavior: contain;
         /* tighten inner padding slightly */
         padding: 16px 14px 14px;
+        /* center the viz block within the card */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      /* card header spans full width even when card is a flex column */
+      .route-card .card-header {
+        align-self: stretch;
+        margin-bottom: 12px;
       }
 
       .empty-state {
