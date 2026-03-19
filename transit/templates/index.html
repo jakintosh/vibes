@@ -384,7 +384,7 @@
       text-overflow: ellipsis;
     }
 
-    .route-type-pill {
+    .route-type-pill, .day-pill {
       font-size: 10px;
       font-weight: 700;
       letter-spacing: 0.05em;
@@ -842,6 +842,7 @@
           {{end}}
         </div>
         <div class="route-type-pill">{{routeTypeName .RouteType}}</div>
+        <div class="day-pill"></div>
       </div>
 
       <!-- Direction labels -->
@@ -911,6 +912,10 @@
       });
       dayBtns.forEach(function(btn) {
         btn.classList.toggle('btn-mode-active', btn.dataset.day === day);
+      });
+      var label = day.charAt(0).toUpperCase() + day.slice(1);
+      document.querySelectorAll('.day-pill').forEach(function(el) {
+        el.textContent = label;
       });
     }
 
