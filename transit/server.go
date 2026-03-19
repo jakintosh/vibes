@@ -14,12 +14,11 @@ import (
 var templateFS embed.FS
 
 type PageData struct {
-	Agencies   []Agency
-	RouteVizs  []RouteViz
-	Feed       *FeedInfo
-	FeedURL    string
-	FetchedAt  string
-	HasWeekend bool
+	Agencies  []Agency
+	RouteVizs []RouteViz
+	Feed      *FeedInfo
+	FeedURL   string
+	FetchedAt string
 }
 
 var routeTypeNames = map[int]string{
@@ -57,12 +56,11 @@ func buildTemplate() (*template.Template, error) {
 
 func buildPageData(data *GTFSData, feedURL string) PageData {
 	return PageData{
-		Agencies:   data.Agencies,
-		RouteVizs:  data.RouteVizs,
-		Feed:       data.Feed,
-		FeedURL:    feedURL,
-		FetchedAt:  data.FetchedAt.Format(time.RFC1123),
-		HasWeekend: data.HasWeekend,
+		Agencies:  data.Agencies,
+		RouteVizs: data.RouteVizs,
+		Feed:      data.Feed,
+		FeedURL:   feedURL,
+		FetchedAt: data.FetchedAt.Format(time.RFC1123),
 	}
 }
 

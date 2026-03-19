@@ -611,11 +611,17 @@
       color: var(--border);
     }
 
-    /* ---- Service mode toggle (weekday/weekend) ---- */
-    .service-toggle {
-      display: flex;
-      gap: 6px;
+    /* ---- Day-of-week picker ---- */
+    .day-toggle {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
       margin-bottom: 12px;
+    }
+
+    .day-toggle .btn {
+      padding: 6px 2px;
+      font-size: 11px;
     }
 
     .btn.btn-mode-active {
@@ -751,13 +757,16 @@
   </div>
 
   <div class="sidebar-controls">
-    {{if .HasWeekend}}
-    <div class="controls-title">Service</div>
-    <div class="service-toggle">
-      <button class="btn btn-mode-active" id="btn-weekday">Weekday</button>
-      <button class="btn" id="btn-weekend">Weekend</button>
+    <div class="controls-title">Day</div>
+    <div class="day-toggle">
+      <button class="btn" data-day="monday">Mon</button>
+      <button class="btn" data-day="tuesday">Tue</button>
+      <button class="btn" data-day="wednesday">Wed</button>
+      <button class="btn" data-day="thursday">Thu</button>
+      <button class="btn" data-day="friday">Fri</button>
+      <button class="btn" data-day="saturday">Sat</button>
+      <button class="btn" data-day="sunday">Sun</button>
     </div>
-    {{end}}
     <div class="controls-title">Routes</div>
     <div class="control-buttons">
       <button class="btn" id="btn-all">All</button>
@@ -782,7 +791,7 @@
 
   <div class="sidebar-footer">
     <div class="footer-text">
-      Weekday service &bull; Each square = 1 trip<br>
+      Each square = 1 trip<br>
       Fetched {{.FetchedAt}}
     </div>
   </div>
@@ -842,8 +851,9 @@
         <div class="dir-label dir-label-1" title="{{index .DirectionLabels 1}}">{{index .DirectionLabels 1}}</div>
       </div>
 
-      <!-- Hour rows (weekday) -->
-      <div class="hour-rows service-rows" data-service="weekday">
+      {{range .DayServices}}
+      <!-- Hour rows ({{.DayKey}}) -->
+      <div class="hour-rows service-rows" data-service="{{.DayKey}}" style="display:none">
         {{range .HourRows}}
         <div class="hour-row{{if .Empty}} empty-hour{{end}}">
           <div class="dir-blocks dir-blocks-0">
@@ -858,28 +868,8 @@
         </div>
         {{end}}
       </div>
-
-      {{if .HasWeekend}}
-      <!-- Hour rows (weekend) -->
-      <div class="hour-rows service-rows" data-service="weekend" style="display:none">
-        {{range .WeekendHourRows}}
-        <div class="hour-row{{if .Empty}} empty-hour{{end}}">
-          <div class="dir-blocks dir-blocks-0">
-            {{range .Dir0Squares}}<div class="sq"></div>{{end}}
-            {{if gt .Dir0Extra 0}}<span class="extra-count">+{{.Dir0Extra}}</span>{{end}}
-          </div>
-          <div class="hour-label">{{.HourDisplay}}</div>
-          <div class="dir-blocks dir-blocks-1">
-            {{range .Dir1Squares}}<div class="sq"></div>{{end}}
-            {{if gt .Dir1Extra 0}}<span class="extra-count">+{{.Dir1Extra}}</span>{{end}}
-          </div>
-        </div>
-        {{end}}
-      </div>
-      {{end}}
-
-      <!-- Totals (weekday) -->
-      <div class="route-totals service-totals" data-service="weekday">
+      <!-- Totals ({{.DayKey}}) -->
+      <div class="route-totals service-totals" data-service="{{.DayKey}}" style="display:none">
         <div class="total-block total-block-0">
           <div class="total-circle">{{index .Totals 0}}</div>
           <div class="total-label">trips/day</div>
@@ -887,20 +877,6 @@
         <div class="total-spacer"></div>
         <div class="total-block total-block-1">
           <div class="total-circle">{{index .Totals 1}}</div>
-          <div class="total-label">trips/day</div>
-        </div>
-      </div>
-
-      {{if .HasWeekend}}
-      <!-- Totals (weekend) -->
-      <div class="route-totals service-totals" data-service="weekend" style="display:none">
-        <div class="total-block total-block-0">
-          <div class="total-circle">{{index .WeekendTotals 0}}</div>
-          <div class="total-label">trips/day</div>
-        </div>
-        <div class="total-spacer"></div>
-        <div class="total-block total-block-1">
-          <div class="total-circle">{{index .WeekendTotals 1}}</div>
           <div class="total-label">trips/day</div>
         </div>
       </div>
@@ -926,22 +902,26 @@
       });
     }
 
-    // ---- Service mode toggle (weekday / weekend) ----
-    var btnWeekday = document.getElementById('btn-weekday');
-    var btnWeekend = document.getElementById('btn-weekend');
-    var serviceMode = 'weekday';
+    // ---- Day-of-week picker ----
+    var dayBtns = document.querySelectorAll('.day-toggle [data-day]');
 
-    function setServiceMode(mode) {
-      serviceMode = mode;
+    function setServiceMode(day) {
       document.querySelectorAll('.service-rows, .service-totals').forEach(function(el) {
-        el.style.display = el.dataset.service === mode ? '' : 'none';
+        el.style.display = el.dataset.service === day ? '' : 'none';
       });
-      if (btnWeekday) btnWeekday.classList.toggle('btn-mode-active', mode === 'weekday');
-      if (btnWeekend) btnWeekend.classList.toggle('btn-mode-active', mode === 'weekend');
+      dayBtns.forEach(function(btn) {
+        btn.classList.toggle('btn-mode-active', btn.dataset.day === day);
+      });
     }
 
-    if (btnWeekday) btnWeekday.addEventListener('click', function() { setServiceMode('weekday'); });
-    if (btnWeekend) btnWeekend.addEventListener('click', function() { setServiceMode('weekend'); });
+    dayBtns.forEach(function(btn) {
+      btn.addEventListener('click', function() { setServiceMode(btn.dataset.day); });
+    });
+
+    // Default to today's day of week; fall back to Monday.
+    var todayDays = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+    var defaultDay = todayDays[new Date().getDay()];
+    setServiceMode(defaultDay);
 
     // ---- Route visibility toggles ----
     var toggles = document.querySelectorAll('.route-toggle');
