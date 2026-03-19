@@ -371,18 +371,21 @@ func parseRoutes(zr *zip.Reader) []Route {
 		})
 	}
 
-	// Sort routes by sort_order if available, else short name
-	sort.Slice(routes, func(i, j int) bool {
-		if routes[i].SortOrder != routes[j].SortOrder {
-			return routes[i].SortOrder < routes[j].SortOrder
-		}
-		// Numeric-aware sort on short name
+	// Sort routes numerically by short name (1, 2, 5, 10, 50, 100 …).
+	// Non-numeric names sort alphabetically after all numeric names.
+	sort.SliceStable(routes, func(i, j int) bool {
 		ni, oki := strconv.Atoi(routes[i].ShortName)
 		nj, okj := strconv.Atoi(routes[j].ShortName)
-		if oki == nil && okj == nil {
+		switch {
+		case oki == nil && okj == nil:
 			return ni < nj
+		case oki == nil:
+			return true // numeric before alpha
+		case okj == nil:
+			return false
+		default:
+			return routes[i].ShortName < routes[j].ShortName
 		}
-		return routes[i].ShortName < routes[j].ShortName
 	})
 
 	return routes
