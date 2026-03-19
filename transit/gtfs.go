@@ -73,6 +73,7 @@ type DayService struct {
 	DayKey   string // "monday", "tuesday", …, "sunday"
 	HourRows []HourRow
 	Totals   [2]int
+	HasTrips bool
 }
 
 // RouteViz is the visualization-ready struct for a single route.
@@ -728,26 +729,27 @@ func buildRouteVizs(routes []Route, dayCounts [7]map[string][2]map[int]int, dirH
 		isActive := hasDates && !now.Before(effectiveFrom) && !now.After(effectiveTo)
 		expiringSoon := isActive && effectiveTo.Sub(now) <= 30*24*time.Hour
 
-		// Build a DayService entry for each day that has service.
+		// Build a DayService entry for every day of the week.
+		// Days with no service produce all-empty hour rows; the template
+		// renders them greyed out so it's still clear there's no service.
 		var dayServices []DayService
+		anyTrips := false
 		for d, col := range dayColumns {
-			counts, ok := dayCounts[d][route.ID]
-			if !ok {
-				continue
-			}
+			counts := dayCounts[d][route.ID] // nil maps are safe to read (return 0)
 			rows, totals, hasTrips := buildHourRows(counts)
-			if !hasTrips {
-				continue
+			if hasTrips {
+				anyTrips = true
 			}
 			dayServices = append(dayServices, DayService{
 				DayKey:   col,
 				HourRows: rows,
 				Totals:   totals,
+				HasTrips: hasTrips,
 			})
 		}
 
-		if len(dayServices) == 0 {
-			continue // no service on any day
+		if !anyTrips {
+			continue // skip routes with no service on any day
 		}
 
 		displayName := route.ShortName
