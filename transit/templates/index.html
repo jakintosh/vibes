@@ -495,6 +495,20 @@
       background: var(--sq-color);
     }
 
+    /* Delta square variants */
+    .sq-added   { background: #22c55e; }
+    .sq-removed { background: #ef4444; }
+    .sq-base    { background: #fff; border: 1.5px solid #1d4e89; }
+
+    /* Square set wrappers (normal vs delta mode) */
+    .sq-set {
+      display: flex;
+      align-items: center;
+      gap: var(--sq-gap);
+    }
+    body:not(.delta-mode) .sq-set-delta { display: none; }
+    body.delta-mode .sq-set-normal { display: none; }
+
     .extra-count {
       font-size: 9px;
       font-weight: 700;
@@ -615,6 +629,32 @@
 
     .legend-sq-1 { background: var(--sq-color); }
     .legend-sq-2 { background: var(--sq-color-alt); }
+    .legend-sq-added   { background: #22c55e; }
+    .legend-sq-removed { background: #ef4444; }
+    .legend-sq-base    { background: #fff; border: 1.5px solid #1d4e89; }
+
+    .legend-delta { display: flex; flex-wrap: wrap; gap: 10px; }
+    body:not(.delta-mode) .legend-delta { display: none; }
+    body.delta-mode .legend-normal { display: none; }
+
+    /* Compare banner */
+    .compare-banner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      background: #eef3fb;
+      border: 1px solid #c5d5ef;
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text);
+      flex-wrap: wrap;
+    }
+    .compare-banner-label { font-weight: 700; color: var(--sq-color-alt); }
+    .compare-range-curr   { font-weight: 600; }
+    .compare-range-prev   { color: var(--muted); }
+    .compare-vs           { color: var(--muted); font-style: italic; }
+    body:not(.delta-mode) .compare-banner { display: none !important; }
 
     /* ---- Empty hour rows ---- */
     .hour-row.empty-hour .hour-label {
@@ -1001,6 +1041,13 @@
       <button class="btn" id="btn-all">All</button>
       <button class="btn" id="btn-none">None</button>
     </div>
+    {{if .HasCompare}}
+    <div class="controls-title">View</div>
+    <div class="control-buttons">
+      <button class="btn" id="btn-delta">Delta</button>
+      <button class="btn" id="btn-normal">Normal</button>
+    </div>
+    {{end}}
   </div>
 
   <div class="sidebar-routes">
@@ -1037,11 +1084,41 @@
   </div>
 
   <div class="legend">
-    <div class="legend-item">
+    <div class="legend-item legend-normal">
       <div class="legend-sq legend-sq-1"></div>
       <span>1 departure per square &bull; max 15 shown per hour &bull; dashed line = 10-min headway threshold (6 trips/hr)</span>
     </div>
+    {{if .HasCompare}}
+    <div class="legend-delta">
+      <div class="legend-item">
+        <div class="legend-sq legend-sq-base"></div>
+        <span>unchanged</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-sq legend-sq-added"></div>
+        <span>added (new schedule)</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-sq legend-sq-removed"></div>
+        <span>removed (previous schedule)</span>
+      </div>
+      <span style="color:var(--muted);font-size:11px">&bull; max 15 shown per hour</span>
+    </div>
+    {{end}}
   </div>
+
+  {{if .HasCompare}}
+  <div class="compare-banner">
+    <span class="compare-banner-label">&#9651; Comparing schedules</span>
+    <span class="compare-range-curr">Current:
+      {{if .Feed}}{{if .Feed.HasDates}}{{formatDate .Feed.StartDate}} &ndash; {{formatDate .Feed.EndDate}}{{else}}(no dates){{end}}{{else}}(no feed info){{end}}
+    </span>
+    <span class="compare-vs">vs</span>
+    <span class="compare-range-prev">Previous:
+      {{if .CompareFeed}}{{if .CompareFeed.HasDates}}{{formatDate .CompareFeed.StartDate}} &ndash; {{formatDate .CompareFeed.EndDate}}{{else}}(no dates){{end}}{{else}}(no feed info){{end}}
+    </span>
+  </div>
+  {{end}}
 
   <div class="routes-row" id="routes-row">
     {{range .RouteVizs}}
@@ -1087,13 +1164,27 @@
         {{range .HourRows}}
         <div class="hour-row{{if .Empty}} empty-hour{{end}}">
           <div class="dir-blocks dir-blocks-0">
-            {{range .Dir0Squares}}<div class="sq"></div>{{end}}
-            {{if gt .Dir0Extra 0}}<span class="extra-count">+{{.Dir0Extra}}</span>{{end}}
+            <div class="sq-set sq-set-normal">
+              {{range .Dir0Squares}}<div class="sq"></div>{{end}}
+              {{if gt .Dir0Extra 0}}<span class="extra-count">+{{.Dir0Extra}}</span>{{end}}
+            </div>
+            <div class="sq-set sq-set-delta">
+              {{range .Dir0AddedSquares}}<div class="sq sq-added"></div>{{end}}
+              {{range .Dir0RemovedSquares}}<div class="sq sq-removed"></div>{{end}}
+              {{range .Dir0BaseSquares}}<div class="sq sq-base"></div>{{end}}
+            </div>
           </div>
           <div class="hour-label">{{.HourDisplay}}</div>
           <div class="dir-blocks dir-blocks-1">
-            {{range .Dir1Squares}}<div class="sq"></div>{{end}}
-            {{if gt .Dir1Extra 0}}<span class="extra-count">+{{.Dir1Extra}}</span>{{end}}
+            <div class="sq-set sq-set-normal">
+              {{range .Dir1Squares}}<div class="sq"></div>{{end}}
+              {{if gt .Dir1Extra 0}}<span class="extra-count">+{{.Dir1Extra}}</span>{{end}}
+            </div>
+            <div class="sq-set sq-set-delta">
+              {{range .Dir1BaseSquares}}<div class="sq sq-base"></div>{{end}}
+              {{range .Dir1AddedSquares}}<div class="sq sq-added"></div>{{end}}
+              {{range .Dir1RemovedSquares}}<div class="sq sq-removed"></div>{{end}}
+            </div>
           </div>
         </div>
         {{end}}
@@ -1203,6 +1294,25 @@
     });
 
     updateEmpty();
+
+    {{if .HasCompare}}
+    // ---- Delta mode toggle ----
+    var btnDelta  = document.getElementById('btn-delta');
+    var btnNormal = document.getElementById('btn-normal');
+
+    function setDeltaMode(on) {
+      document.body.classList.toggle('delta-mode', on);
+      if (btnDelta)  btnDelta.classList.toggle('btn-mode-active', on);
+      if (btnNormal) btnNormal.classList.toggle('btn-mode-active', !on);
+    }
+
+    if (btnDelta)  btnDelta.addEventListener('click',  function() { setDeltaMode(true);  });
+    if (btnNormal) btnNormal.addEventListener('click', function() { setDeltaMode(false); });
+
+    // Default: delta mode on when compare data is available.
+    setDeltaMode(true);
+    {{end}}
+
   })();
 </script>
 </body>

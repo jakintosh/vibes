@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -105,6 +106,16 @@ type HourRow struct {
 	Dir0Count   int
 	Dir1Count   int
 	Empty       bool // no trips in either direction this hour
+
+	// Delta fields — populated by applyDelta when a compare feed is provided.
+	// Dir0: outer (left) edge = added/removed squares; inner = base squares.
+	// Dir1: inner (left) = base squares; outer (right) edge = added/removed.
+	Dir0AddedSquares   []struct{}
+	Dir0RemovedSquares []struct{}
+	Dir0BaseSquares    []struct{}
+	Dir1AddedSquares   []struct{}
+	Dir1RemovedSquares []struct{}
+	Dir1BaseSquares    []struct{}
 }
 
 const maxSquares = 15
@@ -184,20 +195,30 @@ func buildRouteServiceIDs(trips map[string]Trip) map[string]map[string]bool {
 	return result
 }
 
-func fetchGTFS(url string) (*GTFSData, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("HTTP GET: %w", err)
-	}
-	defer resp.Body.Close()
+func fetchGTFS(rawURL string) (*GTFSData, error) {
+	var raw []byte
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP status %d", resp.StatusCode)
-	}
-
-	raw, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading body: %w", err)
+	if strings.HasPrefix(rawURL, "file://") {
+		path := strings.TrimPrefix(rawURL, "file://")
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("reading file: %w", err)
+		}
+		raw = b
+	} else {
+		resp, err := http.Get(rawURL)
+		if err != nil {
+			return nil, fmt.Errorf("HTTP GET: %w", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("HTTP status %d", resp.StatusCode)
+		}
+		b, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("reading body: %w", err)
+		}
+		raw = b
 	}
 
 	zr, err := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))
@@ -775,4 +796,63 @@ func buildRouteVizs(routes []Route, dayCounts [7]map[string][2]map[int]int, dirH
 		})
 	}
 	return vizs
+}
+
+// applyDelta fills the delta square fields on every HourRow in vizs by
+// comparing against the corresponding rows in compareData. Routes with no
+// match in compareData are treated as fully new (all trips added).
+func applyDelta(vizs []RouteViz, compareData *GTFSData) {
+	// Index compare routes by ShortName.
+	compareByName := make(map[string]*RouteViz, len(compareData.RouteVizs))
+	for i := range compareData.RouteVizs {
+		compareByName[compareData.RouteVizs[i].ShortName] = &compareData.RouteVizs[i]
+	}
+
+	for vi := range vizs {
+		cmp := compareByName[vizs[vi].ShortName] // nil if not found → treats all as added
+
+		for di := range vizs[vi].DayServices {
+			ds := &vizs[vi].DayServices[di]
+
+			// Build hour→count lookups for this day from the compare route.
+			cmpC0 := map[int]int{}
+			cmpC1 := map[int]int{}
+			if cmp != nil {
+				for _, cds := range cmp.DayServices {
+					if cds.DayKey == ds.DayKey {
+						for _, chr := range cds.HourRows {
+							cmpC0[chr.Hour] = chr.Dir0Count
+							cmpC1[chr.Hour] = chr.Dir1Count
+						}
+						break
+					}
+				}
+			}
+
+			for hi := range ds.HourRows {
+				hr := &ds.HourRows[hi]
+				hr.Dir0AddedSquares, hr.Dir0RemovedSquares, hr.Dir0BaseSquares =
+					deltaSquares(hr.Dir0Count, cmpC0[hr.Hour])
+				hr.Dir1AddedSquares, hr.Dir1RemovedSquares, hr.Dir1BaseSquares =
+					deltaSquares(hr.Dir1Count, cmpC1[hr.Hour])
+			}
+		}
+	}
+}
+
+// deltaSquares computes three square slices (added, removed, base) given the
+// current count and the baseline count. Total displayed squares is capped at maxSquares.
+func deltaSquares(curr, base int) (added, removed, baseline []struct{}) {
+	switch {
+	case curr > base:
+		bsq := min(base, maxSquares)
+		asq := min(curr-base, maxSquares-bsq)
+		return make([]struct{}, asq), nil, make([]struct{}, bsq)
+	case curr < base:
+		csq := min(curr, maxSquares)
+		rsq := min(base-curr, maxSquares-csq)
+		return nil, make([]struct{}, rsq), make([]struct{}, csq)
+	default:
+		return nil, nil, make([]struct{}, min(curr, maxSquares))
+	}
 }

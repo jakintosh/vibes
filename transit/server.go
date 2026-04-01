@@ -14,11 +14,14 @@ import (
 var templateFS embed.FS
 
 type PageData struct {
-	Agencies  []Agency
-	RouteVizs []RouteViz
-	Feed      *FeedInfo
-	FeedURL   string
-	FetchedAt string
+	Agencies    []Agency
+	RouteVizs   []RouteViz
+	Feed        *FeedInfo
+	FeedURL     string
+	FetchedAt   string
+	HasCompare  bool
+	CompareFeed *FeedInfo
+	CompareURL  string
 }
 
 var routeTypeNames = map[int]string{
@@ -54,17 +57,23 @@ func buildTemplate() (*template.Template, error) {
 	return template.New("index.html").Funcs(funcMap).ParseFS(templateFS, "templates/index.html")
 }
 
-func buildPageData(data *GTFSData, feedURL string) PageData {
-	return PageData{
-		Agencies:  data.Agencies,
-		RouteVizs: data.RouteVizs,
-		Feed:      data.Feed,
-		FeedURL:   feedURL,
-		FetchedAt: data.FetchedAt.Format(time.RFC1123),
+func buildPageData(data *GTFSData, feedURL string, compareData *GTFSData, compareURL string) PageData {
+	pd := PageData{
+		Agencies:   data.Agencies,
+		RouteVizs:  data.RouteVizs,
+		Feed:       data.Feed,
+		FeedURL:    feedURL,
+		FetchedAt:  data.FetchedAt.Format(time.RFC1123),
+		HasCompare: compareData != nil,
+		CompareURL: compareURL,
 	}
+	if compareData != nil {
+		pd.CompareFeed = compareData.Feed
+	}
+	return pd
 }
 
-func renderToFile(data *GTFSData, feedURL string, path string) error {
+func renderToFile(data *GTFSData, feedURL string, compareData *GTFSData, compareURL string, path string) error {
 	tmpl, err := buildTemplate()
 	if err != nil {
 		return fmt.Errorf("parsing template: %w", err)
@@ -74,19 +83,19 @@ func renderToFile(data *GTFSData, feedURL string, path string) error {
 		return fmt.Errorf("creating file: %w", err)
 	}
 	defer f.Close()
-	if err := tmpl.Execute(f, buildPageData(data, feedURL)); err != nil {
+	if err := tmpl.Execute(f, buildPageData(data, feedURL, compareData, compareURL)); err != nil {
 		return fmt.Errorf("rendering template: %w", err)
 	}
 	return nil
 }
 
-func startServer(data *GTFSData, feedURL string, port int) error {
+func startServer(data *GTFSData, feedURL string, compareData *GTFSData, compareURL string, port int) error {
 	tmpl, err := buildTemplate()
 	if err != nil {
 		return fmt.Errorf("parsing template: %w", err)
 	}
 
-	pageData := buildPageData(data, feedURL)
+	pageData := buildPageData(data, feedURL, compareData, compareURL)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")

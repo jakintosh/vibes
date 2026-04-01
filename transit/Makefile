@@ -2,7 +2,10 @@ BINARY  := transit
 PORT    := 8080
 URL     ?=
 
-.PHONY: build test run clean
+TESTDATA_PREV := testdata/previous.zip
+TESTDATA_CURR := testdata/current.zip
+
+.PHONY: build test run clean testdata
 
 build:
 	go build -o $(BINARY) .
@@ -25,5 +28,11 @@ ifndef OUT
 endif
 	./$(BINARY) --url $(URL) --render $(OUT)
 
+testdata: $(TESTDATA_PREV) $(TESTDATA_CURR)
+
+$(TESTDATA_PREV) $(TESTDATA_CURR): testdata/gen_feeds.py
+	python3 testdata/gen_feeds.py
+
 clean:
 	rm -f $(BINARY)
+	rm -f $(TESTDATA_PREV) $(TESTDATA_CURR)
