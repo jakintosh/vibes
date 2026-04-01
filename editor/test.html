@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Text Editor Test</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #121212;
+      color: #ccc;
+      font-family: sans-serif;
+      padding: 20px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    h1 { font-size: 16px; color: #888; font-weight: normal; }
+    #toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    button {
+      background: #2a2a2a;
+      color: #ccc;
+      border: 1px solid #444;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    button:hover { background: #333; }
+    label { font-size: 12px; color: #888; }
+    input[type=range] { width: 80px; accent-color: #555; }
+    input[type=number] { width: 50px; background: #2a2a2a; color: #ccc; border: 1px solid #444; border-radius: 4px; padding: 2px 4px; }
+    #editor-container {
+      flex: 1;
+      border: 1px solid #333;
+      border-radius: 6px;
+      overflow: auto;
+      min-height: 0;
+    }
+    #status {
+      font-size: 11px;
+      color: #555;
+      font-family: monospace;
+    }
+    #info {
+      display: flex;
+      gap: 16px;
+      font-size: 11px;
+      color: #555;
+    }
+    .sep { color: #333; }
+  </style>
+</head>
+<body>
+  <h1>Minimal Text Editor — Prototype</h1>
+
+  <div id="toolbar">
+    <button id="btn-undo">Undo (Ctrl+Z)</button>
+    <button id="btn-redo">Redo (Ctrl+Y)</button>
+    <span class="sep">|</span>
+    <button id="btn-select-all">Select All</button>
+    <button id="btn-copy">Copy</button>
+    <button id="btn-cut">Cut</button>
+    <button id="btn-paste">Paste</button>
+    <span class="sep">|</span>
+    <label>Font size: <input type="number" id="font-size" value="14" min="8" max="48"></label>
+    <label>
+      <input type="checkbox" id="soft-wrap"> Soft Wrap
+    </label>
+    <label>
+      <input type="checkbox" id="readonly"> Read Only
+    </label>
+  </div>
+
+  <div id="editor-container"></div>
+
+  <div id="info">
+    <span id="cursor-pos">cursor: 0</span>
+    <span id="sel-info">selection: none</span>
+    <span id="char-count">chars: 0</span>
+    <span id="line-count">lines: 0</span>
+  </div>
+
+  <script type="module">
+    import { createEditor } from "./editor.js";
+
+    const initialText = `// Minimal Text Editor — prototype
+// Try typing, selecting (click+drag), double-click to select word,
+// arrow keys with Shift/Ctrl, and the toolbar buttons above.
+
+function greet(name) {
+  const msg = "Hello, " + name + "!";
+  console.log(msg);
+  return msg;
+}
+
+// The quick brown fox jumps over the lazy dog.
+// Pack my box with five dozen liquor jugs.
+// How vividly daft jumping zebras vex.
+
+const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const doubled = numbers.map(n => n * 2);
+const sum = doubled.reduce((acc, n) => acc + n, 0);
+
+console.log("Sum of doubled:", sum);
+`;
+
+    const container = document.getElementById("editor-container");
+    const editor = createEditor(container, {
+      text: initialText,
+      font: { family: "monospace", size: 14, lineHeight: 1.6 },
+      tabSize: 2,
+    });
+
+    // Enable all commands
+    ["copy", "cut", "paste", "undo", "redo", "selectAll"].forEach(c => editor.enableCommand(c));
+
+    // Focus on load
+    editor.focus();
+
+    // Status bar
+    function updateStatus() {
+      const cursor = editor.getCursor();
+      const text = editor.getText();
+      const sel = editor.getSelection();
+      const lines = text.split("\n");
+
+      // cursor line/col
+      let offset = 0, line = 0, col = 0;
+      for (let i = 0; i < lines.length; i++) {
+        if (offset + lines[i].length >= cursor) {
+          line = i + 1;
+          col = cursor - offset + 1;
+          break;
+        }
+        offset += lines[i].length + 1;
+      }
+
+      document.getElementById("cursor-pos").textContent = `Ln ${line}, Col ${col}`;
+      document.getElementById("sel-info").textContent = sel
+        ? `sel: [${sel[0]}, ${sel[1]}] (${sel[1]-sel[0]} chars)`
+        : "selection: none";
+      document.getElementById("char-count").textContent = `chars: ${text.length}`;
+      document.getElementById("line-count").textContent = `lines: ${lines.length}`;
+    }
+
+    editor.onChange(updateStatus);
+    editor.onSelectionChange(updateStatus);
+    updateStatus();
+
+    // Toolbar buttons
+    document.getElementById("btn-undo").onclick = () => { editor.execCommand("undo"); editor.focus(); };
+    document.getElementById("btn-redo").onclick = () => { editor.execCommand("redo"); editor.focus(); };
+    document.getElementById("btn-select-all").onclick = () => { editor.execCommand("selectAll"); editor.focus(); };
+    document.getElementById("btn-copy").onclick = () => { editor.execCommand("copy"); editor.focus(); };
+    document.getElementById("btn-cut").onclick = () => { editor.execCommand("cut"); editor.focus(); };
+    document.getElementById("btn-paste").onclick = () => { editor.execCommand("paste"); editor.focus(); };
+
+    // Font size
+    document.getElementById("font-size").addEventListener("input", e => {
+      editor.setFont({ size: parseInt(e.target.value) || 14 });
+      editor.focus();
+    });
+
+    // Soft wrap
+    document.getElementById("soft-wrap").addEventListener("change", e => {
+      editor.setOptions({ softWrap: e.target.checked });
+      editor.focus();
+    });
+
+    // Read only
+    document.getElementById("readonly").addEventListener("change", e => {
+      editor.setOptions({ readOnly: e.target.checked });
+      editor.focus();
+    });
+  </script>
+</body>
+</html>
