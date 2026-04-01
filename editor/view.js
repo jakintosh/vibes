@@ -115,15 +115,22 @@ export function createView(containerEl, model) {
         if (lineEnd < selStart || lineStart >= selEnd) continue;
 
         let x1 = null, x2 = null;
-        for (const box of boxes) {
+        let hasNewlineSelected = false;
+        for (let i = 0; i < boxes.length; i++) {
+          const box = boxes[i];
           if (box.offset >= selStart && box.offset < selEnd) {
             if (x1 === null) x1 = box.x;
-            x2 = box.x + box.width;
+            if (i < boxes.length - 1) {
+              x2 = box.x + box.width;
+            } else {
+              hasNewlineSelected = true;
+            }
           }
         }
         if (x1 !== null) {
-          const minWidth = layout.charHeight * 0.5;
-          ctx.fillRect(x1, line.y, Math.max(x2 - x1, minWidth), line.height);
+          const nubWidth = layout.charHeight * 0.5;
+          const selWidth = (x2 !== null ? x2 - x1 : 0) + (hasNewlineSelected ? nubWidth : 0);
+          ctx.fillRect(x1, line.y, selWidth, line.height);
         }
       }
     }
