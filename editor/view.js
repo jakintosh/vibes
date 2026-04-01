@@ -122,7 +122,8 @@ export function createView(containerEl, model) {
           }
         }
         if (x1 !== null) {
-          ctx.fillRect(x1, line.y, x2 - x1, line.height);
+          const minWidth = layout.charHeight * 0.5;
+          ctx.fillRect(x1, line.y, Math.max(x2 - x1, minWidth), line.height);
         }
       }
     }
