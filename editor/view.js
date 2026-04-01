@@ -66,11 +66,16 @@ export function createView(containerEl, model) {
   }
 
   function resizeCanvas() {
-    const w = Math.max(getContainerWidth(), layout ? layout.contentWidth + 40 : 0);
-    const h = Math.max(containerEl.clientHeight || 200, layout ? layout.contentHeight + 20 : 0);
-    if (canvas.width !== w || canvas.height !== h) {
-      canvas.width = w;
-      canvas.height = h;
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = Math.max(getContainerWidth(), layout ? layout.contentWidth + 40 : 0);
+    const cssH = Math.max(containerEl.clientHeight || 200, layout ? layout.contentHeight + 20 : 0);
+    const physW = Math.round(cssW * dpr);
+    const physH = Math.round(cssH * dpr);
+    if (canvas.width !== physW || canvas.height !== physH) {
+      canvas.width = physW;
+      canvas.height = physH;
+      canvas.style.width = cssW + "px";
+      canvas.style.height = cssH + "px";
     }
   }
 
@@ -78,10 +83,12 @@ export function createView(containerEl, model) {
     if (!layout) return;
     resizeCanvas();
 
+    const dpr = window.devicePixelRatio || 1;
     const font = model.getFont();
     const cursor = model.getCursor();
     const selection = model.getSelection();
 
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Background

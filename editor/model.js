@@ -34,7 +34,7 @@ export function createModel(initialText = "", fontConfig = {}, options = {}) {
   }
 
   function adjustOffset(pos, start, end, replacementLen) {
-    if (pos <= start) return pos;
+    if (pos < start) return pos;
     if (pos < end) return start + replacementLen;
     return pos + (start + replacementLen - end);
   }
