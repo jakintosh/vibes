@@ -18,15 +18,18 @@ export function createEditor(containerEl, options = {}) {
   const originalEdit = model.edit.bind(model);
   model.edit = function(range, replacement) {
     if (undoEnabled) {
-      const [start, end] = [
-        Math.max(0, Math.min(range[0], model.getText().length)),
-        Math.max(0, Math.min(range[1], model.getText().length)),
-      ];
-      const removed = model.getText().slice(start, end);
-      undoStack.push({ range: [start, end], removed, inserted: replacement, cursorBefore: model.getCursor() });
-      redoStack.length = 0;
+      const len = model.getText().length;
+      const start = Math.max(0, Math.min(Math.min(range[0], range[1]), len));
+      const end   = Math.max(0, Math.min(Math.max(range[0], range[1]), len));
+      const removed      = model.getText().slice(start, end);
+      const cursorBefore = model.getCursor();
+      redoStack.length   = 0;
+      originalEdit(range, replacement);
+      const cursorAfter  = model.getCursor();
+      undoStack.push({ range: [start, end], removed, inserted: replacement, cursorBefore, cursorAfter });
+    } else {
+      originalEdit(range, replacement);
     }
-    originalEdit(range, replacement);
   };
 
   // --- View ---
@@ -68,29 +71,19 @@ export function createEditor(containerEl, options = {}) {
       default: (ed) => {
         if (!undoEnabled || !undoStack.length) return;
         const entry = undoStack.pop();
-        const insertedLen = entry.inserted.length;
-        const invertRange = [entry.range[0], entry.range[0] + insertedLen];
-        redoStack.push({
-          range: invertRange,
-          removed: entry.inserted,
-          inserted: entry.removed,
-          cursorBefore: model.getCursor(),
-        });
+        const invertRange = [entry.range[0], entry.range[0] + entry.inserted.length];
         originalEdit(invertRange, entry.removed);
         model.setCursor(entry.cursorBefore, false);
+        redoStack.push(entry);
       },
     },
     redo: {
       default: (ed) => {
         if (!undoEnabled || !redoStack.length) return;
         const entry = redoStack.pop();
-        undoStack.push({
-          range: entry.range,
-          removed: entry.removed,
-          inserted: entry.inserted,
-          cursorBefore: model.getCursor(),
-        });
         originalEdit(entry.range, entry.inserted);
+        model.setCursor(entry.cursorAfter, false);
+        undoStack.push(entry);
       },
     },
   };

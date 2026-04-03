@@ -264,6 +264,8 @@ export function createInput(containerEl, model, view, commands) {
       model.setCursor(start, false);
       model.setCursor(end, true);
       lastClickTime = 0;
+      view.focus();
+      e.preventDefault();
       return;
     }
 
