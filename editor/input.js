@@ -1,4 +1,4 @@
-import { nextCursor, previousCursor } from "./vendor/pretext/layout.js";
+import { nextCursor, previousCursor } from "./vendor/pretext/dist/layout.js";
 import { findVisualLineForOffset, getCursorBox, offsetFromPoint } from "./layout.js";
 
 export function createInput(containerEl, model, view, commands) {

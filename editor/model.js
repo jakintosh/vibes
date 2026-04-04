@@ -2,7 +2,7 @@ import {
   cursorToOffset,
   offsetToCursor,
   prepareWithSegments,
-} from "./vendor/pretext/layout.js";
+} from "./vendor/pretext/dist/layout.js";
 
 function cloneCursor(cursor) {
   return { segmentIndex: cursor.segmentIndex, graphemeIndex: cursor.graphemeIndex };

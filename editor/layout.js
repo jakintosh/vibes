@@ -1,7 +1,7 @@
 import {
   layoutWithLines,
   measureLineCarets,
-} from "./vendor/pretext/layout.js";
+} from "./vendor/pretext/dist/layout.js";
 
 function findLineIndex(y, layout) {
   if (!layout || !layout.lines.length) return -1;

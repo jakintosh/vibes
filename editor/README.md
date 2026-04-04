@@ -1,50 +1,78 @@
 # Minimal Text Editor
 
-A minimal JavaScript text editor component that renders to `<canvas>` and uses a vendored copy of Pretext for grapheme-safe text layout, caret geometry, and hit-testing. No `contentEditable`, no frameworks.
+A minimal JavaScript text editor component that renders to `<canvas>` and uses a vendored Git subtree copy of Pretext for grapheme-safe text layout, caret geometry, and hit-testing. No `contentEditable`, no frameworks.
 
 ## Quick Start
 
-Refresh the vendored Pretext build first, then serve this folder over HTTP:
+Build the vendored Pretext copy first, then serve this folder over HTTP:
 
 ```sh
-cd /Users/jak/src/pretext
+cd /Users/jak/src/vibes/editor
+cd vendor/pretext
+bun install
 bun run build:package
 
 cd /Users/jak/src/vibes/editor
-rm -rf vendor/pretext
-cp -R ../pretext/dist vendor/pretext
 
 python3 -m http.server 8080
 # open http://localhost:8080/index.html
 ```
 
-The editor imports Pretext from `./vendor/pretext/layout.js`.
+The editor imports Pretext from `./vendor/pretext/dist/layout.js`.
 
 ## Vendoring Strategy
 
-For now, the practical vendoring loop is:
+`vendor/pretext` is a Git subtree of the upstream Pretext repo. The actual Git root is:
 
 ```sh
-cd /Users/jak/src/pretext
-bun run build:package
-
-cd /Users/jak/src/vibes/editor
-rm -rf vendor/pretext
-cp -R ../pretext/dist vendor/pretext
+/Users/jak/src/vibes
 ```
 
-The best permanent setup is usually one of these:
+To update the vendored copy from GitHub:
 
-1. Add a tiny sync script in the editor repo, for example `scripts/vendor-pretext.sh`, that rebuilds Pretext and recopies `dist/`.
-2. Pin a specific upstream commit in a small `vendor/pretext/VERSION` or `vendor/pretext/UPSTREAM` text file so updates are traceable.
-3. If these repos will keep evolving together, move to a workspace/monorepo or subtree-based flow so vendoring is reproducible instead of manual.
+```sh
+cd /Users/jak/src/vibes
+git subtree pull --prefix=editor/vendor/pretext pretext-upstream main --squash
+```
 
-For this editor specifically, I’d recommend option 1 plus a small version file:
-- keep vendoring `dist/` only
-- add a one-command sync script
-- record the upstream Pretext commit hash beside the vendored files
+If you need to export local subtree changes back out as a branch:
 
-That keeps the runtime dependency tiny while still making updates deliberate and reviewable.
+```sh
+cd /Users/jak/src/vibes
+git subtree split --prefix=editor/vendor/pretext -b pretext-export
+```
+
+## Building Vendored Pretext
+
+From inside `editor/`, the simplest build loop is:
+
+```sh
+cd /Users/jak/src/vibes/editor/vendor/pretext
+bun install
+bun run build:package
+```
+
+Then go back to the editor root and serve it:
+
+```sh
+cd /Users/jak/src/vibes/editor
+python3 -m http.server 8080
+```
+
+If you update the subtree first, rebuild again afterward so `vendor/pretext/dist/` matches the vendored source.
+
+## Longer-Term Workflow
+
+For this setup, the most sustainable workflow is:
+
+1. Keep the full source as a subtree in `vendor/pretext/`.
+2. Build the vendored copy locally into `vendor/pretext/dist/`.
+3. Treat subtree pulls and local Pretext edits as normal Git changes inside the `vibes` repo.
+4. If this becomes a lasting setup, add a small script in `editor/` that runs:
+   - subtree pull
+   - `cd vendor/pretext && bun run build:package`
+
+That gives you a vendored source tree, a local build artifact for the editor to import, and a clean path to sync from upstream GitHub.
 
 To embed in your own page:
 
