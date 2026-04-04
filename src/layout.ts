@@ -66,9 +66,19 @@ import {
 } from './line-break.js'
 
 let sharedGraphemeSegmenter: Intl.Segmenter | null = null
-// Rich-path only. Reuses grapheme splits while materializing multiple lines
-// from the same prepared handle, without pushing that cache into the API.
-let sharedLineTextCaches = new WeakMap<PreparedTextWithSegments, Map<number, string[]>>()
+// Rich-path only. Reuses grapheme splits, offset maps, and derived caret data
+// without pushing those caches into the public API surface.
+type CachedSegmentGraphemeData = {
+  graphemes: string[]
+  codeUnitOffsets: Int32Array
+}
+
+type PreparedRichCache = {
+  segmentData: Map<number, CachedSegmentGraphemeData>
+  segmentStartOffsets: Int32Array | null
+}
+
+let sharedRichCaches = new WeakMap<PreparedTextWithSegments, PreparedRichCache>()
 
 function getSharedGraphemeSegmenter(): Intl.Segmenter {
   if (sharedGraphemeSegmenter === null) {
@@ -90,6 +100,7 @@ type PreparedCore = {
   segLevels: Int8Array | null // Rich-path bidi metadata for custom rendering; layout() never reads it
   breakableWidths: (number[] | null)[] // Grapheme widths for overflow-wrap segments, else null
   breakablePrefixWidths: (number[] | null)[] // Cumulative grapheme prefix widths for narrow browser-policy shims
+  segmentGraphemeWidths: (number[] | null)[] // Rich-path grapheme widths for caret geometry and cursor stepping
   discretionaryHyphenWidth: number // Visible width added when a soft hyphen is chosen as the break
   tabStopAdvance: number // Absolute advance between tab stops for pre-wrap tab segments
   chunks: PreparedLineChunk[] // Precompiled hard-break chunks for line walking
@@ -137,6 +148,16 @@ export type LayoutLineRange = {
   end: LayoutCursor // Exclusive end cursor in prepared segments/graphemes
 }
 
+export type OffsetAffinity = 'backward' | 'forward'
+
+export type LineCaretGeometry = {
+  x: Float32Array
+  offsets: Int32Array
+  contentEndOffset: number
+  endOffset: number
+  endsWithHardBreak: boolean
+}
+
 export type LayoutLinesResult = LayoutResult & {
   lines: LayoutLine[] // Per-line text/width pairs for custom rendering
 }
@@ -173,6 +194,7 @@ function createEmptyPrepared(includeSegments: boolean): InternalPreparedText | P
       segLevels: null,
       breakableWidths: [],
       breakablePrefixWidths: [],
+      segmentGraphemeWidths: [],
       discretionaryHyphenWidth: 0,
       tabStopAdvance: 0,
       chunks: [],
@@ -188,6 +210,7 @@ function createEmptyPrepared(includeSegments: boolean): InternalPreparedText | P
     segLevels: null,
     breakableWidths: [],
     breakablePrefixWidths: [],
+    segmentGraphemeWidths: [],
     discretionaryHyphenWidth: 0,
     tabStopAdvance: 0,
     chunks: [],
@@ -219,6 +242,7 @@ function measureAnalysis(
   const segStarts = includeSegments ? [] as number[] : null
   const breakableWidths: (number[] | null)[] = []
   const breakablePrefixWidths: (number[] | null)[] = []
+  const segmentGraphemeWidths: (number[] | null)[] = []
   const segments = includeSegments ? [] as string[] : null
   const preparedStartByAnalysisIndex = Array.from<number>({ length: analysis.len })
   const preparedEndByAnalysisIndex = Array.from<number>({ length: analysis.len })
@@ -232,6 +256,7 @@ function measureAnalysis(
     start: number,
     breakable: number[] | null,
     breakablePrefix: number[] | null,
+    segmentGraphemeWidth: number[] | null,
   ): void {
     if (kind !== 'text' && kind !== 'space' && kind !== 'zero-width-break') {
       simpleLineWalkFastPath = false
@@ -243,6 +268,7 @@ function measureAnalysis(
     segStarts?.push(start)
     breakableWidths.push(breakable)
     breakablePrefixWidths.push(breakablePrefix)
+    segmentGraphemeWidths.push(segmentGraphemeWidth)
     if (segments !== null) segments.push(text)
   }
 
@@ -263,19 +289,20 @@ function measureAnalysis(
         segStart,
         null,
         null,
+        null,
       )
       preparedEndByAnalysisIndex[mi] = widths.length
       continue
     }
 
     if (segKind === 'hard-break') {
-      pushMeasuredSegment(segText, 0, 0, 0, segKind, segStart, null, null)
+      pushMeasuredSegment(segText, 0, 0, 0, segKind, segStart, null, null, null)
       preparedEndByAnalysisIndex[mi] = widths.length
       continue
     }
 
     if (segKind === 'tab') {
-      pushMeasuredSegment(segText, 0, 0, 0, segKind, segStart, null, null)
+      pushMeasuredSegment(segText, 0, 0, 0, segKind, segStart, null, null, null)
       preparedEndByAnalysisIndex[mi] = widths.length
       continue
     }
@@ -309,7 +336,7 @@ function measureAnalysis(
 
         const unitMetrics = getSegmentMetrics(unitText, cache)
         const w = getCorrectedSegmentWidth(unitText, unitMetrics, emojiCorrection)
-        pushMeasuredSegment(unitText, w, w, w, 'text', segStart + unitStart, null, null)
+        pushMeasuredSegment(unitText, w, w, w, 'text', segStart + unitStart, null, null, null)
 
         unitText = grapheme
         unitStart = gs.index
@@ -318,7 +345,7 @@ function measureAnalysis(
       if (unitText.length > 0) {
         const unitMetrics = getSegmentMetrics(unitText, cache)
         const w = getCorrectedSegmentWidth(unitText, unitMetrics, emojiCorrection)
-        pushMeasuredSegment(unitText, w, w, w, 'text', segStart + unitStart, null, null)
+        pushMeasuredSegment(unitText, w, w, w, 'text', segStart + unitStart, null, null, null)
       }
       preparedEndByAnalysisIndex[mi] = widths.length
       continue
@@ -334,6 +361,11 @@ function measureAnalysis(
         ? 0
         : w
 
+    const richGraphemeWidths =
+      includeSegments && segText.length > 1
+        ? getSegmentGraphemeWidths(segText, segMetrics, cache, emojiCorrection)
+        : null
+
     if (segWordLike && segText.length > 1) {
       const graphemeWidths = getSegmentGraphemeWidths(segText, segMetrics, cache, emojiCorrection)
       const graphemePrefixWidths = engineProfile.preferPrefixWidthsForBreakableRuns
@@ -348,6 +380,7 @@ function measureAnalysis(
         segStart,
         graphemeWidths,
         graphemePrefixWidths,
+        richGraphemeWidths ?? graphemeWidths,
       )
     } else {
       pushMeasuredSegment(
@@ -359,6 +392,7 @@ function measureAnalysis(
         segStart,
         null,
         null,
+        richGraphemeWidths,
       )
     }
     preparedEndByAnalysisIndex[mi] = widths.length
@@ -376,6 +410,7 @@ function measureAnalysis(
       segLevels,
       breakableWidths,
       breakablePrefixWidths,
+      segmentGraphemeWidths,
       discretionaryHyphenWidth,
       tabStopAdvance,
       chunks,
@@ -391,6 +426,7 @@ function measureAnalysis(
     segLevels,
     breakableWidths,
     breakablePrefixWidths,
+    segmentGraphemeWidths,
     discretionaryHyphenWidth,
     tabStopAdvance,
     chunks,
@@ -506,30 +542,235 @@ export function layout(prepared: PreparedText, maxWidth: number, lineHeight: num
   return { lineCount, height: lineCount * lineHeight }
 }
 
-function getSegmentGraphemes(
-  segmentIndex: number,
-  segments: string[],
-  cache: Map<number, string[]>,
-): string[] {
-  let graphemes = cache.get(segmentIndex)
-  if (graphemes !== undefined) return graphemes
-
-  graphemes = []
-  const graphemeSegmenter = getSharedGraphemeSegmenter()
-  for (const gs of graphemeSegmenter.segment(segments[segmentIndex]!)) {
-    graphemes.push(gs.segment)
-  }
-  cache.set(segmentIndex, graphemes)
-  return graphemes
-}
-
-function getLineTextCache(prepared: PreparedTextWithSegments): Map<number, string[]> {
-  let cache = sharedLineTextCaches.get(prepared)
+function getRichCache(prepared: PreparedTextWithSegments): PreparedRichCache {
+  let cache = sharedRichCaches.get(prepared)
   if (cache !== undefined) return cache
 
-  cache = new Map<number, string[]>()
-  sharedLineTextCaches.set(prepared, cache)
+  cache = {
+    segmentData: new Map<number, CachedSegmentGraphemeData>(),
+    segmentStartOffsets: null,
+  }
+  sharedRichCaches.set(prepared, cache)
   return cache
+}
+
+function getSegmentStartOffsets(prepared: PreparedTextWithSegments): Int32Array {
+  const cache = getRichCache(prepared)
+  if (cache.segmentStartOffsets !== null) return cache.segmentStartOffsets
+
+  const offsets = new Int32Array(prepared.segments.length + 1)
+  for (let i = 0; i < prepared.segments.length; i++) {
+    offsets[i + 1] = offsets[i]! + prepared.segments[i]!.length
+  }
+
+  cache.segmentStartOffsets = offsets
+  return offsets
+}
+
+function getSegmentGraphemeData(
+  prepared: PreparedTextWithSegments,
+  segmentIndex: number,
+): CachedSegmentGraphemeData {
+  const cache = getRichCache(prepared)
+  let data = cache.segmentData.get(segmentIndex)
+  if (data !== undefined) return data
+
+  const graphemes: string[] = []
+  const graphemeSegmenter = getSharedGraphemeSegmenter()
+  for (const gs of graphemeSegmenter.segment(prepared.segments[segmentIndex]!)) {
+    graphemes.push(gs.segment)
+  }
+
+  const codeUnitOffsets = new Int32Array(graphemes.length + 1)
+  for (let i = 0; i < graphemes.length; i++) {
+    codeUnitOffsets[i + 1] = codeUnitOffsets[i]! + graphemes[i]!.length
+  }
+
+  data = { graphemes, codeUnitOffsets }
+  cache.segmentData.set(segmentIndex, data)
+  return data
+}
+
+function getSegmentGraphemes(prepared: PreparedTextWithSegments, segmentIndex: number): string[] {
+  return getSegmentGraphemeData(prepared, segmentIndex).graphemes
+}
+
+function getSegmentCodeUnitOffsets(prepared: PreparedTextWithSegments, segmentIndex: number): Int32Array {
+  return getSegmentGraphemeData(prepared, segmentIndex).codeUnitOffsets
+}
+
+function getSegmentGraphemeCount(prepared: PreparedTextWithSegments, segmentIndex: number): number {
+  return getSegmentGraphemeData(prepared, segmentIndex).graphemes.length
+}
+
+function cursorAtSegmentBoundary(
+  segmentIndex: number,
+  graphemeBoundaryIndex: number,
+  graphemeCount: number,
+): LayoutCursor {
+  if (graphemeBoundaryIndex <= 0) {
+    return {
+      segmentIndex,
+      graphemeIndex: 0,
+    }
+  }
+
+  if (graphemeBoundaryIndex >= graphemeCount) {
+    return {
+      segmentIndex: segmentIndex + 1,
+      graphemeIndex: 0,
+    }
+  }
+
+  return {
+    segmentIndex,
+    graphemeIndex: graphemeBoundaryIndex,
+  }
+}
+
+function compareCursors(a: LayoutCursor, b: LayoutCursor): number {
+  if (a.segmentIndex !== b.segmentIndex) return a.segmentIndex - b.segmentIndex
+  return a.graphemeIndex - b.graphemeIndex
+}
+
+export function cursorToOffset(prepared: PreparedTextWithSegments, cursor: LayoutCursor): number {
+  const segmentStartOffsets = getSegmentStartOffsets(prepared)
+  if (cursor.segmentIndex >= prepared.segments.length) {
+    return segmentStartOffsets[prepared.segments.length]!
+  }
+
+  if (cursor.graphemeIndex <= 0) {
+    return segmentStartOffsets[cursor.segmentIndex]!
+  }
+
+  const localOffsets = getSegmentCodeUnitOffsets(prepared, cursor.segmentIndex)
+  const boundaryIndex = Math.min(cursor.graphemeIndex, localOffsets.length - 1)
+  return segmentStartOffsets[cursor.segmentIndex]! + localOffsets[boundaryIndex]!
+}
+
+export function offsetToCursor(
+  prepared: PreparedTextWithSegments,
+  offset: number,
+  affinity: OffsetAffinity = 'forward',
+): LayoutCursor {
+  const segmentStartOffsets = getSegmentStartOffsets(prepared)
+  const clampedOffset = Math.max(0, Math.min(offset, segmentStartOffsets[prepared.segments.length]!))
+  if (clampedOffset === segmentStartOffsets[prepared.segments.length]!) {
+    return {
+      segmentIndex: prepared.segments.length,
+      graphemeIndex: 0,
+    }
+  }
+
+  let lo = 0
+  let hi = prepared.segments.length
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2)
+    if (segmentStartOffsets[mid + 1]! <= clampedOffset) {
+      lo = mid + 1
+    } else {
+      hi = mid
+    }
+  }
+
+  const segmentIndex = lo
+  const localOffset = clampedOffset - segmentStartOffsets[segmentIndex]!
+  if (localOffset <= 0) {
+    return {
+      segmentIndex,
+      graphemeIndex: 0,
+    }
+  }
+
+  const localOffsets = getSegmentCodeUnitOffsets(prepared, segmentIndex)
+  const graphemeCount = localOffsets.length - 1
+  for (let i = 1; i < localOffsets.length; i++) {
+    const boundary = localOffsets[i]!
+    if (boundary === localOffset) {
+      return cursorAtSegmentBoundary(segmentIndex, i, graphemeCount)
+    }
+    if (boundary > localOffset) {
+      return affinity === 'backward'
+        ? cursorAtSegmentBoundary(segmentIndex, i - 1, graphemeCount)
+        : cursorAtSegmentBoundary(segmentIndex, i, graphemeCount)
+    }
+  }
+
+  return {
+    segmentIndex: segmentIndex + 1,
+    graphemeIndex: 0,
+  }
+}
+
+export function nextCursor(prepared: PreparedTextWithSegments, cursor: LayoutCursor): LayoutCursor | null {
+  if (cursor.segmentIndex >= prepared.segments.length) return null
+
+  const graphemeCount = getSegmentGraphemeCount(prepared, cursor.segmentIndex)
+  if (graphemeCount <= 1) {
+    return {
+      segmentIndex: cursor.segmentIndex + 1,
+      graphemeIndex: 0,
+    }
+  }
+
+  if (cursor.graphemeIndex <= 0) {
+    return {
+      segmentIndex: cursor.segmentIndex,
+      graphemeIndex: 1,
+    }
+  }
+
+  if (cursor.graphemeIndex >= graphemeCount - 1) {
+    return {
+      segmentIndex: cursor.segmentIndex + 1,
+      graphemeIndex: 0,
+    }
+  }
+
+  return {
+    segmentIndex: cursor.segmentIndex,
+    graphemeIndex: cursor.graphemeIndex + 1,
+  }
+}
+
+export function previousCursor(prepared: PreparedTextWithSegments, cursor: LayoutCursor): LayoutCursor | null {
+  if (cursor.segmentIndex === 0 && cursor.graphemeIndex === 0) return null
+
+  if (cursor.segmentIndex >= prepared.segments.length) {
+    const previousSegmentIndex = prepared.segments.length - 1
+    const graphemeCount = getSegmentGraphemeCount(prepared, previousSegmentIndex)
+    return graphemeCount <= 1
+      ? { segmentIndex: previousSegmentIndex, graphemeIndex: 0 }
+      : { segmentIndex: previousSegmentIndex, graphemeIndex: graphemeCount - 1 }
+  }
+
+  if (cursor.graphemeIndex <= 0) {
+    const previousSegmentIndex = cursor.segmentIndex - 1
+    const graphemeCount = getSegmentGraphemeCount(prepared, previousSegmentIndex)
+    return graphemeCount <= 1
+      ? { segmentIndex: previousSegmentIndex, graphemeIndex: 0 }
+      : { segmentIndex: previousSegmentIndex, graphemeIndex: graphemeCount - 1 }
+  }
+
+  if (cursor.graphemeIndex === 1) {
+    return {
+      segmentIndex: cursor.segmentIndex,
+      graphemeIndex: 0,
+    }
+  }
+
+  return {
+    segmentIndex: cursor.segmentIndex,
+    graphemeIndex: cursor.graphemeIndex - 1,
+  }
+}
+
+function getTabAdvance(lineWidth: number, tabStopAdvance: number): number {
+  if (tabStopAdvance <= 0) return 0
+
+  const remainder = lineWidth % tabStopAdvance
+  if (Math.abs(remainder) <= 1e-6) return tabStopAdvance
+  return tabStopAdvance - remainder
 }
 
 function lineHasDiscretionaryHyphen(
@@ -546,9 +787,8 @@ function lineHasDiscretionaryHyphen(
 }
 
 function buildLineTextFromRange(
-  segments: string[],
+  prepared: PreparedTextWithSegments,
   kinds: SegmentBreakKind[],
-  cache: Map<number, string[]>,
   startSegmentIndex: number,
   startGraphemeIndex: number,
   endSegmentIndex: number,
@@ -565,15 +805,15 @@ function buildLineTextFromRange(
   for (let i = startSegmentIndex; i < endSegmentIndex; i++) {
     if (kinds[i] === 'soft-hyphen' || kinds[i] === 'hard-break') continue
     if (i === startSegmentIndex && startGraphemeIndex > 0) {
-      text += getSegmentGraphemes(i, segments, cache).slice(startGraphemeIndex).join('')
+      text += getSegmentGraphemes(prepared, i).slice(startGraphemeIndex).join('')
     } else {
-      text += segments[i]!
+      text += prepared.segments[i]!
     }
   }
 
   if (endGraphemeIndex > 0) {
     if (endsWithDiscretionaryHyphen) text += '-'
-    text += getSegmentGraphemes(endSegmentIndex, segments, cache).slice(
+    text += getSegmentGraphemes(prepared, endSegmentIndex).slice(
       startSegmentIndex === endSegmentIndex ? startGraphemeIndex : 0,
       endGraphemeIndex,
     ).join('')
@@ -586,7 +826,6 @@ function buildLineTextFromRange(
 
 function createLayoutLine(
   prepared: PreparedTextWithSegments,
-  cache: Map<number, string[]>,
   width: number,
   startSegmentIndex: number,
   startGraphemeIndex: number,
@@ -595,9 +834,8 @@ function createLayoutLine(
 ): LayoutLine {
   return {
     text: buildLineTextFromRange(
-      prepared.segments,
+      prepared,
       prepared.kinds,
-      cache,
       startSegmentIndex,
       startGraphemeIndex,
       endSegmentIndex,
@@ -617,12 +855,10 @@ function createLayoutLine(
 
 function materializeLayoutLine(
   prepared: PreparedTextWithSegments,
-  cache: Map<number, string[]>,
   line: InternalLayoutLine,
 ): LayoutLine {
   return createLayoutLine(
     prepared,
-    cache,
     line.width,
     line.startSegmentIndex,
     line.startGraphemeIndex,
@@ -661,7 +897,6 @@ function materializeLine(
 ): LayoutLine {
   return createLayoutLine(
     prepared,
-    getLineTextCache(prepared),
     line.width,
     line.start.segmentIndex,
     line.start.graphemeIndex,
@@ -709,6 +944,111 @@ export function measureNaturalWidth(prepared: PreparedTextWithSegments): number 
   return maxWidth
 }
 
+function lineEndsWithHardBreak(prepared: PreparedTextWithSegments, line: LayoutLine | LayoutLineRange): boolean {
+  return (
+    line.end.graphemeIndex === 0 &&
+    line.end.segmentIndex > 0 &&
+    prepared.kinds[line.end.segmentIndex - 1] === 'hard-break'
+  )
+}
+
+function getLineContentEndCursor(
+  prepared: PreparedTextWithSegments,
+  line: LayoutLine | LayoutLineRange,
+): LayoutCursor {
+  if (!lineEndsWithHardBreak(prepared, line)) {
+    return line.end
+  }
+
+  return {
+    segmentIndex: line.end.segmentIndex - 1,
+    graphemeIndex: 0,
+  }
+}
+
+export function measureLineCarets(
+  prepared: PreparedTextWithSegments,
+  line: LayoutLine | LayoutLineRange,
+): LineCaretGeometry {
+  const contentEnd = getLineContentEndCursor(prepared, line)
+  const endsWithHardBreak = lineEndsWithHardBreak(prepared, line)
+  const contentEndOffset = cursorToOffset(prepared, contentEnd)
+  const endOffset = cursorToOffset(prepared, line.end)
+  const xPositions = [0]
+  const boundaryOffsets = [cursorToOffset(prepared, line.start)]
+  const segmentStartOffsets = getSegmentStartOffsets(prepared)
+  let x = 0
+
+  function appendSegmentGraphemes(
+    segmentIndex: number,
+    startGraphemeIndex: number,
+    endGraphemeIndex: number,
+  ): void {
+    if (startGraphemeIndex >= endGraphemeIndex) return
+
+    const kind = prepared.kinds[segmentIndex]!
+    if (kind === 'soft-hyphen' || kind === 'hard-break') return
+
+    const graphemeCount = getSegmentGraphemeCount(prepared, segmentIndex)
+    const segmentOffsets = getSegmentCodeUnitOffsets(prepared, segmentIndex)
+    const segmentWidths = prepared.segmentGraphemeWidths[segmentIndex]
+
+    for (let graphemeIndex = startGraphemeIndex; graphemeIndex < endGraphemeIndex; graphemeIndex++) {
+      const graphemeWidth =
+        kind === 'tab'
+          ? getTabAdvance(x, prepared.tabStopAdvance)
+          : segmentWidths?.[graphemeIndex] ?? prepared.widths[segmentIndex]!
+
+      x += graphemeWidth
+      xPositions.push(x)
+      boundaryOffsets.push(segmentStartOffsets[segmentIndex]! + segmentOffsets[graphemeIndex + 1]!)
+    }
+
+    if (endGraphemeIndex === graphemeCount && boundaryOffsets[boundaryOffsets.length - 1] !== segmentStartOffsets[segmentIndex + 1]!) {
+      boundaryOffsets[boundaryOffsets.length - 1] = segmentStartOffsets[segmentIndex + 1]!
+    }
+  }
+
+  if (compareCursors(line.start, contentEnd) < 0) {
+    for (let segmentIndex = line.start.segmentIndex; segmentIndex < contentEnd.segmentIndex; segmentIndex++) {
+      const startGraphemeIndex = segmentIndex === line.start.segmentIndex ? line.start.graphemeIndex : 0
+      appendSegmentGraphemes(
+        segmentIndex,
+        startGraphemeIndex,
+        getSegmentGraphemeCount(prepared, segmentIndex),
+      )
+    }
+
+    if (contentEnd.graphemeIndex > 0 && contentEnd.segmentIndex < prepared.segments.length) {
+      appendSegmentGraphemes(
+        contentEnd.segmentIndex,
+        contentEnd.segmentIndex === line.start.segmentIndex ? line.start.graphemeIndex : 0,
+        contentEnd.graphemeIndex,
+      )
+    }
+  }
+
+  if (lineHasDiscretionaryHyphen(
+    prepared.kinds,
+    line.start.segmentIndex,
+    line.start.graphemeIndex,
+    line.end.segmentIndex,
+  )) {
+    x += prepared.discretionaryHyphenWidth
+  }
+
+  xPositions[xPositions.length - 1] = line.width
+  boundaryOffsets[boundaryOffsets.length - 1] = contentEndOffset
+
+  return {
+    x: Float32Array.from(xPositions),
+    offsets: Int32Array.from(boundaryOffsets),
+    contentEndOffset,
+    endOffset,
+    endsWithHardBreak,
+  }
+}
+
 export function layoutNextLine(
   prepared: PreparedTextWithSegments,
   start: LayoutCursor,
@@ -735,9 +1075,8 @@ export function layoutWithLines(prepared: PreparedTextWithSegments, maxWidth: nu
   const lines: LayoutLine[] = []
   if (prepared.widths.length === 0) return { lineCount: 0, height: 0, lines }
 
-  const graphemeCache = getLineTextCache(prepared)
   const lineCount = walkPreparedLines(getInternalPrepared(prepared), maxWidth, line => {
-    lines.push(materializeLayoutLine(prepared, graphemeCache, line))
+    lines.push(materializeLayoutLine(prepared, line))
   })
 
   return { lineCount, height: lineCount * lineHeight, lines }
@@ -746,7 +1085,7 @@ export function layoutWithLines(prepared: PreparedTextWithSegments, maxWidth: nu
 export function clearCache(): void {
   clearAnalysisCaches()
   sharedGraphemeSegmenter = null
-  sharedLineTextCaches = new WeakMap<PreparedTextWithSegments, Map<number, string[]>>()
+  sharedRichCaches = new WeakMap<PreparedTextWithSegments, PreparedRichCache>()
   clearMeasurementCaches()
 }
 

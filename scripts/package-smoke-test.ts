@@ -55,6 +55,8 @@ async function smokeJavaScriptEsm(tarballPath: string): Promise<void> {
       "import * as pretext from '@chenglou/pretext'",
       "if (typeof pretext.prepare !== 'function') throw new Error('prepare export missing')",
       "if (typeof pretext.layout !== 'function') throw new Error('layout export missing')",
+      "if (typeof pretext.measureLineCarets !== 'function') throw new Error('measureLineCarets export missing')",
+      "if (typeof pretext.offsetToCursor !== 'function') throw new Error('offsetToCursor export missing')",
       "console.log('js-esm ok')",
       '',
     ].join('\n'),
@@ -94,10 +96,13 @@ async function smokeTypeScript(tarballPath: string): Promise<void> {
   await writeFile(
     path.join(projectDir, 'index.ts'),
     [
-      "import { layout, prepare } from '@chenglou/pretext'",
+      "import { layout, measureLineCarets, offsetToCursor, prepare, prepareWithSegments } from '@chenglou/pretext'",
       "const prepared = prepare('hello', '16px Inter')",
       'const result = layout(prepared, 100, 20)',
       'result.height satisfies number',
+      "const rich = prepareWithSegments('hello', '16px Inter')",
+      "const line = { width: 10, start: offsetToCursor(rich, 0), end: offsetToCursor(rich, 5) }",
+      'measureLineCarets(rich, line).contentEndOffset satisfies number',
       '',
     ].join('\n'),
   )

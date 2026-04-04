@@ -90,6 +90,27 @@ while (true) {
 
 This usage allows rendering to canvas, SVG, WebGL and (eventually) server-side.
 
+If you need editor-like caret and selection geometry, the rich path now also exposes cursor/offset helpers plus per-line caret positions:
+
+```ts
+import {
+  cursorToOffset,
+  measureLineCarets,
+  nextCursor,
+  offsetToCursor,
+  previousCursor,
+} from '@chenglou/pretext'
+
+const prepared = prepareWithSegments('Hello\nworld', '16px Inter', { whiteSpace: 'pre-wrap' })
+const { lines } = layoutWithLines(prepared, 240, 22)
+const carets = measureLineCarets(prepared, lines[0])
+
+const cursor = offsetToCursor(prepared, 1)
+const next = nextCursor(prepared, cursor)
+const offset = cursorToOffset(prepared, next ?? cursor)
+// carets.x and carets.offsets now align every visible grapheme boundary on that line
+```
+
 If your manual layout needs a small helper for mixed inline runs, atomic pills, and browser-like boundary whitespace collapse, there is an experimental alpha sidecar at `@chenglou/pretext/inline-flow`. It stays inline-only and `white-space: normal`-only on purpose:
 
 ```ts
@@ -130,6 +151,11 @@ measureNaturalWidth(prepared: PreparedTextWithSegments): number // intrinsic-wid
 layoutNextLineRange(prepared: PreparedTextWithSegments, start: LayoutCursor, maxWidth: number): LayoutLineRange | null // iterator-like geometry API for variable-width layouts, without building line text strings
 layoutNextLine(prepared: PreparedTextWithSegments, start: LayoutCursor, maxWidth: number): LayoutLine | null // iterator-like api for laying out each line with a different width! Returns the LayoutLine starting from `start`, or `null` when the paragraph's exhausted. Pass the previous line's `end` cursor as the next `start`.
 materializeLineRange(prepared: PreparedTextWithSegments, line: LayoutLineRange): LayoutLine // turns one previously computed line range back into a full line with text
+measureLineCarets(prepared: PreparedTextWithSegments, line: LayoutLine | LayoutLineRange): LineCaretGeometry // returns per-grapheme caret x positions and aligned source offsets for one laid-out line
+cursorToOffset(prepared: PreparedTextWithSegments, cursor: LayoutCursor): number // converts a rich layout cursor back to a JS string offset in the prepared source
+offsetToCursor(prepared: PreparedTextWithSegments, offset: number, affinity?: 'backward' | 'forward'): LayoutCursor // snaps a JS string offset onto the nearest valid grapheme boundary
+nextCursor(prepared: PreparedTextWithSegments, cursor: LayoutCursor): LayoutCursor | null // steps one grapheme boundary forward
+previousCursor(prepared: PreparedTextWithSegments, cursor: LayoutCursor): LayoutCursor | null // steps one grapheme boundary backward
 type LayoutLine = {
   text: string // Full text content of this line, e.g. 'hello world'
   width: number // Measured width of this line, e.g. 87.5
@@ -144,6 +170,13 @@ type LayoutLineRange = {
 type LayoutCursor = {
   segmentIndex: number // Segment index in prepareWithSegments' prepared rich segment stream
   graphemeIndex: number // Grapheme index within that segment; `0` at segment boundaries
+}
+type LineCaretGeometry = {
+  x: Float32Array // x positions for each visible grapheme boundary on the line
+  offsets: Int32Array // source code-unit offsets aligned with `x`
+  contentEndOffset: number // end offset of the visible text on this line
+  endOffset: number // end offset including a consumed hard break, if any
+  endsWithHardBreak: boolean // true when this visual line consumes a trailing \n hard break
 }
 ```
 

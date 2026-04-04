@@ -19,8 +19,13 @@ let layoutWithLines: LayoutModule['layoutWithLines']
 let layoutNextLine: LayoutModule['layoutNextLine']
 let layoutNextLineRange: LayoutModule['layoutNextLineRange']
 let measureLineGeometry: LayoutModule['measureLineGeometry']
+let measureLineCarets: LayoutModule['measureLineCarets']
 let walkLineRanges: LayoutModule['walkLineRanges']
 let clearCache: LayoutModule['clearCache']
+let cursorToOffset: LayoutModule['cursorToOffset']
+let offsetToCursor: LayoutModule['offsetToCursor']
+let nextCursor: LayoutModule['nextCursor']
+let previousCursor: LayoutModule['previousCursor']
 let setLocale: LayoutModule['setLocale']
 let countPreparedLines: LineBreakModule['countPreparedLines']
 let measurePreparedLineGeometry: LineBreakModule['measurePreparedLineGeometry']
@@ -242,8 +247,13 @@ beforeAll(async () => {
     layoutNextLine,
     layoutNextLineRange,
     measureLineGeometry,
+    measureLineCarets,
     walkLineRanges,
     clearCache,
+    cursorToOffset,
+    offsetToCursor,
+    nextCursor,
+    previousCursor,
     setLocale,
   } = mod)
   ;({ countPreparedLines, measurePreparedLineGeometry, stepPreparedLineGeometry, walkPreparedLines } = lineBreakMod)
@@ -771,6 +781,96 @@ describe('layout invariants', () => {
     }
   })
 
+  test('cursor helpers round-trip source offsets across mixed grapheme cases', () => {
+    const cases = [
+      { text: 'A👨‍👩‍👧‍👦e\u0301中', options: undefined },
+      { text: 'مرحبا', options: undefined },
+      { text: 'foo trans\u00ADatlantic', options: undefined },
+      { text: 'foo\nbar', options: { whiteSpace: 'pre-wrap' as const } },
+    ]
+
+    for (const { text, options } of cases) {
+      const prepared = prepareWithSegments(text, FONT, options)
+      const normalized = prepared.segments.join('')
+      const expectedOffsets = [0]
+      let offset = 0
+      for (const grapheme of graphemeSegmenter.segment(normalized)) {
+        offset += grapheme.segment.length
+        expectedOffsets.push(offset)
+      }
+
+      for (const boundary of expectedOffsets) {
+        const cursor = offsetToCursor(prepared, boundary)
+        expect(cursorToOffset(prepared, cursor)).toBe(boundary)
+      }
+
+      const forwardOffsets = [0]
+      let cursor = { segmentIndex: 0, graphemeIndex: 0 }
+      while (true) {
+        const next = nextCursor(prepared, cursor)
+        if (next === null) break
+        forwardOffsets.push(cursorToOffset(prepared, next))
+        cursor = next
+      }
+      expect(forwardOffsets).toEqual(expectedOffsets)
+
+      const backwardOffsets = [expectedOffsets.at(-1)!]
+      let backwardCursor = { segmentIndex: prepared.segments.length, graphemeIndex: 0 }
+      while (true) {
+        const previous = previousCursor(prepared, backwardCursor)
+        if (previous === null) break
+        backwardOffsets.push(cursorToOffset(prepared, previous))
+        backwardCursor = previous
+      }
+      expect(backwardOffsets.reverse()).toEqual(expectedOffsets)
+    }
+  })
+
+  test('offset affinity snaps mid-grapheme offsets in the requested direction', () => {
+    const prepared = prepareWithSegments('a👨‍👩‍👧‍👦b', FONT)
+    const forward = offsetToCursor(prepared, 2, 'forward')
+    const backward = offsetToCursor(prepared, 2, 'backward')
+
+    expect(cursorToOffset(prepared, forward)).toBe(12)
+    expect(cursorToOffset(prepared, backward)).toBe(1)
+  })
+
+  test('measureLineCarets returns monotonic caret geometry aligned to source offsets', () => {
+    const prepared = prepareWithSegments('A👨‍👩‍👧‍👦e\u0301中', FONT)
+    const line = layoutWithLines(prepared, 400, LINE_HEIGHT).lines[0]!
+    const geometry = measureLineCarets(prepared, line)
+
+    expect(Array.from(geometry.offsets)).toEqual([0, 1, 12, 14, 15])
+    expect(Array.from(geometry.x)).toHaveLength(geometry.offsets.length)
+    expect(geometry.x[0]).toBe(0)
+    expect(geometry.x.at(-1)).toBeCloseTo(line.width, 4)
+    expect(geometry.contentEndOffset).toBe(15)
+    expect(geometry.endOffset).toBe(15)
+    expect(geometry.endsWithHardBreak).toBe(false)
+
+    for (let i = 1; i < geometry.x.length; i++) {
+      expect(geometry.x[i]!).toBeGreaterThanOrEqual(geometry.x[i - 1]!)
+      expect(geometry.offsets[i]!).toBeGreaterThan(geometry.offsets[i - 1]!)
+    }
+  })
+
+  test('measureLineCarets reports hard-break consumption separately from visible content', () => {
+    const prepared = prepareWithSegments('foo\nbar', FONT, { whiteSpace: 'pre-wrap' })
+    const lines = layoutWithLines(prepared, 400, LINE_HEIGHT).lines
+    const first = measureLineCarets(prepared, lines[0]!)
+    const second = measureLineCarets(prepared, lines[1]!)
+
+    expect(first.endsWithHardBreak).toBe(true)
+    expect(first.contentEndOffset).toBe(3)
+    expect(first.endOffset).toBe(4)
+    expect(Array.from(first.offsets)).toEqual([0, 1, 2, 3])
+    expect(first.x.at(-1)).toBeCloseTo(lines[0]!.width, 5)
+
+    expect(second.endsWithHardBreak).toBe(false)
+    expect(second.contentEndOffset).toBe(7)
+    expect(second.endOffset).toBe(7)
+  })
+
   test('soft-hyphen round-trip uses source slices instead of rendered line text', () => {
     const prepared = prepareWithSegments('foo trans\u00ADatlantic', FONT)
     const width =
@@ -784,6 +884,25 @@ describe('layout invariants', () => {
 
     expect(result.lines.map(line => line.text).join('')).toBe('foo trans-atlantic')
     expect(reconstructFromLineBoundaries(prepared, result.lines)).toBe('foo trans\u00ADatlantic')
+  })
+
+  test('measureLineCarets keeps soft-hyphen source offsets while matching rendered width', () => {
+    const prepared = prepareWithSegments('foo trans\u00ADatlantic', FONT)
+    const width =
+      prepared.widths[0]! +
+      prepared.widths[1]! +
+      prepared.widths[2]! +
+      prepared.breakableWidths[4]![0]! +
+      prepared.discretionaryHyphenWidth +
+      0.1
+    const line = layoutWithLines(prepared, width, LINE_HEIGHT).lines.find(candidate => candidate.text.includes('-'))!
+    const geometry = measureLineCarets(prepared, line)
+
+    expect(line.text.includes('-')).toBe(true)
+    expect(geometry.endsWithHardBreak).toBe(false)
+    expect(geometry.contentEndOffset).toBe(geometry.endOffset)
+    expect(geometry.x.at(-1)).toBeCloseTo(line.width, 5)
+    expect(geometry.offsets.at(-1)).toBe(geometry.contentEndOffset)
   })
 
   test('layoutNextLine variable-width streaming stays contiguous and reconstructs normalized text', () => {
