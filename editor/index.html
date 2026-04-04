@@ -126,9 +126,9 @@ console.log("Sum of doubled:", sum);
 
     // Status bar
     function updateStatus() {
-      const cursor = editor.getCursor();
+      const cursor = editor.getCursorOffset();
       const text = editor.getText();
-      const sel = editor.getSelection();
+      const sel = editor.getSelectionOffsets();
       const lines = text.split("\n");
 
       // cursor line/col

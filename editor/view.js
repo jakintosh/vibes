@@ -1,22 +1,15 @@
-// View — reads Layout output and paints characters, cursor, and selection.
-
-import { computeLayout, offsetFromPoint, getCursorBox, createMeasureContext } from "./layout.js";
+import { computeLayout, getCursorBox, fontString } from "./layout.js";
 
 export function createView(containerEl, model) {
-  const measureCtx = createMeasureContext(model.getFont());
-
-  // Container setup
   containerEl.style.position = "relative";
   containerEl.style.overflow = "auto";
   containerEl.style.cursor = "text";
 
-  // Canvas
   const canvas = document.createElement("canvas");
   canvas.style.display = "block";
   containerEl.appendChild(canvas);
   const ctx = canvas.getContext("2d");
 
-  // Hidden textarea for input capture
   const textarea = document.createElement("textarea");
   textarea.setAttribute("autocomplete", "off");
   textarea.setAttribute("autocorrect", "off");
@@ -40,7 +33,6 @@ export function createView(containerEl, model) {
   });
   containerEl.appendChild(textarea);
 
-  // Colors
   const colors = {
     background: "#1e1e1e",
     text: "#d4d4d4",
@@ -53,16 +45,12 @@ export function createView(containerEl, model) {
   let cursorVisible = true;
   let blinkTimer = null;
 
-  function fontString(font) {
-    return `${font.style} ${font.weight} ${font.size}px ${font.family}`;
-  }
-
   function getContainerWidth() {
-    return containerEl.clientWidth || 600;
+    return containerEl.getBoundingClientRect().width || 600;
   }
 
   function recomputeLayout() {
-    layout = computeLayout(model, measureCtx, getContainerWidth());
+    layout = computeLayout(model, getContainerWidth());
   }
 
   function resizeCanvas() {
@@ -85,57 +73,44 @@ export function createView(containerEl, model) {
 
     const dpr = window.devicePixelRatio || 1;
     const font = model.getFont();
-    const cursor = model.getCursor();
-    const selection = model.getSelection();
+    const cursorOffset = model.getCursorOffset();
+    const selection = model.getSelectionOffsets();
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Background
     ctx.fillStyle = colors.background;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Current line highlight
-    const cursorBox = getCursorBox(cursor, layout);
+    const cursorBox = getCursorBox(cursorOffset, layout);
     ctx.fillStyle = colors.lineHighlight;
     ctx.fillRect(0, cursorBox.y, canvas.width, cursorBox.height);
 
-    // Selection rectangles
     if (selection) {
       const [selStart, selEnd] = selection;
       ctx.fillStyle = colors.selection;
 
       for (const line of layout.lines) {
-        const boxes = line.charBoxes;
-        if (!boxes.length) continue;
+        if (selEnd < line.caretOffsets[0] || selStart > line.endOffset) continue;
 
-        const lineStart = boxes[0].offset;
-        const lineEnd = boxes[boxes.length - 1].offset;
-
-        if (lineEnd < selStart || lineStart >= selEnd) continue;
-
-        let x1 = null, x2 = null;
-        let hasNewlineSelected = false;
-        for (let i = 0; i < boxes.length; i++) {
-          const box = boxes[i];
-          if (box.offset >= selStart && box.offset < selEnd) {
-            if (x1 === null) x1 = box.x;
-            if (i < boxes.length - 1) {
-              x2 = box.x + box.width;
-            } else {
-              hasNewlineSelected = true;
-            }
-          }
+        let x1 = null;
+        let x2 = null;
+        for (let i = 0; i < line.caretOffsets.length; i++) {
+          const offset = line.caretOffsets[i];
+          if (offset < selStart || offset > selEnd) continue;
+          if (x1 === null) x1 = line.caretX[i];
+          x2 = line.caretX[i];
         }
+
+        const includesHardBreak = line.endsWithHardBreak && selStart <= line.endOffset && selEnd >= line.endOffset;
         if (x1 !== null) {
           const nubWidth = layout.charHeight * 0.5;
-          const selWidth = (x2 !== null ? x2 - x1 : 0) + (hasNewlineSelected ? nubWidth : 0);
+          const selWidth = (x2 - x1) + (includesHardBreak ? nubWidth : 0);
           ctx.fillRect(x1, line.y, selWidth, line.height);
         }
       }
     }
 
-    // Text
     ctx.font = fontString(font);
     ctx.fillStyle = colors.text;
     ctx.textBaseline = "middle";
@@ -143,11 +118,10 @@ export function createView(containerEl, model) {
     for (const line of layout.lines) {
       if (line.text.length > 0) {
         const midY = line.y + line.height / 2;
-        ctx.fillText(line.text, line.charBoxes[0].x, midY);
+        ctx.fillText(line.text, line.caretX[0], midY);
       }
     }
 
-    // Cursor
     if (cursorVisible) {
       ctx.fillStyle = colors.cursor;
       ctx.fillRect(cursorBox.x, cursorBox.y + 2, 2, cursorBox.height - 4);
@@ -169,13 +143,13 @@ export function createView(containerEl, model) {
     paint();
   }
 
-  // Initial render
   refresh();
 
-  // Subscribe to model changes
   const unsub = model.onChange(() => refresh());
+  const resizeObserver = new ResizeObserver(() => refresh());
+  resizeObserver.observe(containerEl);
 
-  const view = {
+  return {
     canvas,
     textarea,
     getLayout() { return layout; },
@@ -188,6 +162,7 @@ export function createView(containerEl, model) {
     },
     destroy() {
       unsub();
+      resizeObserver.disconnect();
       if (blinkTimer) clearInterval(blinkTimer);
       canvas.remove();
       textarea.remove();
@@ -197,6 +172,4 @@ export function createView(containerEl, model) {
       paint();
     },
   };
-
-  return view;
 }

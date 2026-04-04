@@ -1,11 +1,11 @@
-// Input — attaches DOM event listeners, translates raw events into API calls.
-
-import { offsetFromPoint } from "./layout.js";
+import { nextCursor, previousCursor } from "./vendor/pretext/layout.js";
+import { findVisualLineForOffset, getCursorBox, offsetFromPoint } from "./layout.js";
 
 export function createInput(containerEl, model, view, commands) {
   let isDragging = false;
   let lastClickOffset = -1;
   let lastClickTime = 0;
+  let preferredX = null;
 
   function isMac() {
     return /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -29,113 +29,64 @@ export function createInput(containerEl, model, view, commands) {
   }
 
   function findWordBoundary(buffer, offset, direction) {
-    // direction: -1 for left, +1 for right
     let pos = offset;
     if (direction < 0) {
       if (pos === 0) return 0;
       pos--;
-      // Skip whitespace
       while (pos > 0 && /\W/.test(buffer[pos])) pos--;
-      // Skip word chars
       while (pos > 0 && /\w/.test(buffer[pos - 1])) pos--;
     } else {
       if (pos >= buffer.length) return buffer.length;
-      // Skip whitespace
       while (pos < buffer.length && /\W/.test(buffer[pos])) pos++;
-      // Skip word chars
       while (pos < buffer.length && /\w/.test(buffer[pos])) pos++;
     }
     return pos;
   }
 
-  function findLineStart(offset) {
-    const buffer = model.getText();
-    let pos = offset;
-    while (pos > 0 && buffer[pos - 1] !== "\n") pos--;
-    return pos;
-  }
-
-  function findLineEnd(offset) {
-    const buffer = model.getText();
-    let pos = offset;
-    while (pos < buffer.length && buffer[pos] !== "\n") pos++;
-    return pos;
-  }
-
-  function targetLeft(buffer, cursor, ctrl, alt) {
-    if (ctrl) return findLineStart(cursor);
-    if (alt)  return findWordBoundary(buffer, cursor, -1);
-    return Math.max(0, cursor - 1);
-  }
-
-  function targetRight(buffer, cursor, ctrl, alt) {
-    if (ctrl) return findLineEnd(cursor);
-    if (alt)  return findWordBoundary(buffer, cursor, 1);
-    return Math.min(buffer.length, cursor + 1);
-  }
-
-  function getVisualXForOffset(offset) {
+  function currentLineInfo() {
     const layout = view.getLayout();
-    if (!layout) return 0;
-    for (const line of layout.lines) {
-      for (const box of line.charBoxes) {
-        if (box.offset === offset) return box.x;
-      }
-    }
-    return 0;
+    if (!layout) return null;
+    const cursorOffset = model.getCursorOffset();
+    const line = findVisualLineForOffset(cursorOffset, layout);
+    if (!line) return null;
+    const box = getCursorBox(cursorOffset, layout);
+    return { layout, line, x: box.x };
   }
 
-  function moveVertically(offset, direction, extend) {
-    const layout = view.getLayout();
-    if (!layout || !layout.lines.length) return;
+  function moveVertically(direction, extend) {
+    const info = currentLineInfo();
+    if (!info) return;
 
-    // Find current visual line and x
-    let currentLineIdx = -1;
-    let currentX = 0;
-    for (let i = 0; i < layout.lines.length; i++) {
-      const line = layout.lines[i];
-      for (const box of line.charBoxes) {
-        if (box.offset === offset) {
-          currentLineIdx = i;
-          currentX = box.x;
-          break;
-        }
-      }
-      if (currentLineIdx >= 0) break;
-    }
-
-    if (currentLineIdx < 0) {
-      // fallback
-      currentLineIdx = direction < 0 ? 1 : layout.lines.length - 2;
-      currentX = 0;
-    }
-
-    const targetIdx = currentLineIdx + direction;
-    if (targetIdx < 0) {
-      model.setCursor(0, extend);
+    const currentIndex = info.layout.lines.indexOf(info.line);
+    const targetIndex = currentIndex + direction;
+    if (targetIndex < 0) {
+      model.setCursorOffset(0, extend);
       return;
     }
-    if (targetIdx >= layout.lines.length) {
-      model.setCursor(model.getText().length, extend);
+    if (targetIndex >= info.layout.lines.length) {
+      model.setCursorOffset(model.getText().length, extend);
       return;
     }
 
-    const targetLine = layout.lines[targetIdx];
-    const newOffset = offsetFromPoint(currentX, targetLine.y + 1, layout);
-    model.setCursor(newOffset, extend);
+    const targetLine = info.layout.lines[targetIndex];
+    const targetX = preferredX ?? info.x;
+    const offset = offsetFromPoint(targetX, targetLine.y + 1, info.layout);
+    preferredX = targetX;
+    model.setCursorOffset(offset, extend);
   }
 
   function onKeydown(e) {
-    const cursor = model.getCursor();
     const buffer = model.getText();
+    const cursor = model.getCursor();
+    const cursorOffset = model.getCursorOffset();
     const selection = model.getSelection();
+    const selectionOffsets = model.getSelectionOffsets();
     const opts = model.getOptions();
 
     const ctrl = isCtrl(e);
     const alt = isAlt(e);
     const shift = e.shiftKey;
 
-    // Command shortcuts
     if (ctrl && !alt) {
       switch (e.key.toLowerCase()) {
         case "a":
@@ -169,91 +120,134 @@ export function createInput(containerEl, model, view, commands) {
     switch (e.key) {
       case "ArrowLeft": {
         e.preventDefault();
+        preferredX = null;
         if (!shift && selection) {
           model.setCursor(selection[0], false);
         } else {
-          model.setCursor(targetLeft(buffer, cursor, ctrl, alt), shift);
+          const info = currentLineInfo();
+          const target = ctrl
+            ? (info ? info.line.start : cursor)
+            : alt
+              ? model.offsetToCursor(findWordBoundary(buffer, cursorOffset, -1), "backward")
+              : previousCursor(model.getPrepared(), cursor) ?? cursor;
+          model.setCursor(target, shift);
         }
         break;
       }
       case "ArrowRight": {
         e.preventDefault();
+        preferredX = null;
         if (!shift && selection) {
           model.setCursor(selection[1], false);
         } else {
-          model.setCursor(targetRight(buffer, cursor, ctrl, alt), shift);
+          const info = currentLineInfo();
+          const target = ctrl
+            ? (info ? model.offsetToCursor(info.line.contentEndOffset, "forward") : cursor)
+            : alt
+              ? model.offsetToCursor(findWordBoundary(buffer, cursorOffset, 1), "forward")
+              : nextCursor(model.getPrepared(), cursor) ?? cursor;
+          model.setCursor(target, shift);
         }
         break;
       }
       case "ArrowUp": {
         e.preventDefault();
-        if (ctrl) model.setCursor(0, shift);
-        else moveVertically(cursor, -1, shift);
+        if (ctrl) {
+          preferredX = null;
+          model.setCursorOffset(0, shift);
+        } else {
+          moveVertically(-1, shift);
+        }
         break;
       }
       case "ArrowDown": {
         e.preventDefault();
-        if (ctrl) model.setCursor(buffer.length, shift);
-        else moveVertically(cursor, 1, shift);
+        if (ctrl) {
+          preferredX = null;
+          model.setCursorOffset(buffer.length, shift);
+        } else {
+          moveVertically(1, shift);
+        }
         break;
       }
       case "Home": {
         e.preventDefault();
-        if (ctrl) model.setCursor(0, shift);
-        else model.setCursor(findLineStart(cursor), shift);
+        preferredX = null;
+        const info = currentLineInfo();
+        if (ctrl || !info) model.setCursorOffset(0, shift);
+        else model.setCursor(info.line.start, shift);
         break;
       }
       case "End": {
         e.preventDefault();
-        if (ctrl) model.setCursor(buffer.length, shift);
-        else model.setCursor(findLineEnd(cursor), shift);
+        preferredX = null;
+        const info = currentLineInfo();
+        if (ctrl || !info) {
+          model.setCursorOffset(buffer.length, shift);
+        } else {
+          model.setCursorOffset(info.line.contentEndOffset, shift);
+        }
         break;
       }
       case "Backspace": {
         e.preventDefault();
-        if (selection) {
-          model.edit(selection, "");
+        preferredX = null;
+        if (selectionOffsets) {
+          model.edit(selectionOffsets, "");
         } else {
-          const target = targetLeft(buffer, cursor, ctrl, alt);
-          if (target !== cursor) model.edit([target, cursor], "");
+          const target = ctrl
+            ? 0
+            : alt
+              ? findWordBoundary(buffer, cursorOffset, -1)
+              : model.cursorToOffset(previousCursor(model.getPrepared(), cursor) ?? cursor);
+          if (target !== cursorOffset) model.edit([target, cursorOffset], "");
         }
         break;
       }
       case "Delete": {
         e.preventDefault();
-        if (selection) {
-          model.edit(selection, "");
+        preferredX = null;
+        if (selectionOffsets) {
+          model.edit(selectionOffsets, "");
         } else {
-          const target = targetRight(buffer, cursor, ctrl, alt);
-          if (target !== cursor) model.edit([cursor, target], "");
+          const target = ctrl
+            ? buffer.length
+            : alt
+              ? findWordBoundary(buffer, cursorOffset, 1)
+              : model.cursorToOffset(nextCursor(model.getPrepared(), cursor) ?? cursor);
+          if (target !== cursorOffset) model.edit([cursorOffset, target], "");
         }
         break;
       }
       case "Enter": {
         e.preventDefault();
-        const range = selection || [cursor, cursor];
+        preferredX = null;
+        const range = selectionOffsets || [cursorOffset, cursorOffset];
         model.edit(range, "\n");
         break;
       }
       case "Tab": {
         e.preventDefault();
-        const range = selection || [cursor, cursor];
+        preferredX = null;
+        const range = selectionOffsets || [cursorOffset, cursorOffset];
         model.edit(range, " ".repeat(opts.tabSize));
         break;
       }
+      default:
+        preferredX = null;
     }
   }
 
-  function onInput(e) {
+  function onInput() {
     const textarea = view.textarea;
     const value = textarea.value;
     if (!value) return;
     textarea.value = "";
 
-    const selection = model.getSelection();
-    const cursor = model.getCursor();
-    const range = selection || [cursor, cursor];
-    model.edit(range, value);
+    preferredX = null;
+    const cursorOffset = model.getCursorOffset();
+    const selection = model.getSelectionOffsets();
+    model.edit(selection || [cursorOffset, cursorOffset], value);
   }
 
   function onMousedown(e) {
@@ -261,15 +255,14 @@ export function createInput(containerEl, model, view, commands) {
     const now = Date.now();
     const offset = hitTest(e.clientX, e.clientY);
 
-    // Double-click detection
     if (now - lastClickTime < 300 && lastClickOffset === offset) {
-      // Select word
       const buffer = model.getText();
       const start = findWordBoundary(buffer, offset, -1);
       const end = findWordBoundary(buffer, offset, 1);
-      model.setCursor(start, false);
-      model.setCursor(end, true);
+      model.setCursorOffset(start, false, "backward");
+      model.setCursorOffset(end, true, "forward");
       lastClickTime = 0;
+      preferredX = null;
       view.focus();
       e.preventDefault();
       return;
@@ -278,7 +271,8 @@ export function createInput(containerEl, model, view, commands) {
     lastClickTime = now;
     lastClickOffset = offset;
 
-    model.setCursor(offset, e.shiftKey);
+    preferredX = null;
+    model.setCursorOffset(offset, e.shiftKey);
     isDragging = true;
     view.focus();
     e.preventDefault();
@@ -286,17 +280,15 @@ export function createInput(containerEl, model, view, commands) {
 
   function onMousemove(e) {
     if (!isDragging) return;
-    const offset = hitTest(e.clientX, e.clientY);
-    model.setCursor(offset, true);
+    preferredX = null;
+    model.setCursorOffset(hitTest(e.clientX, e.clientY), true);
   }
 
   function onMouseup() {
     isDragging = false;
   }
 
-  // Attach listeners
   const textarea = view.textarea;
-
   textarea.addEventListener("keydown", onKeydown);
   textarea.addEventListener("input", onInput);
   containerEl.addEventListener("mousedown", onMousedown);

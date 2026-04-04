@@ -1,15 +1,50 @@
 # Minimal Text Editor
 
-A zero-dependency JavaScript text editor component. Renders to `<canvas>`, driven by a plain data model. No `contentEditable`, no frameworks, no build step.
+A minimal JavaScript text editor component that renders to `<canvas>` and uses a vendored copy of Pretext for grapheme-safe text layout, caret geometry, and hit-testing. No `contentEditable`, no frameworks.
 
 ## Quick Start
 
-Serve the folder over HTTP (ES modules require a server) and open `test.html`:
+Refresh the vendored Pretext build first, then serve this folder over HTTP:
 
 ```sh
+cd /Users/jak/src/pretext
+bun run build:package
+
+cd /Users/jak/src/vibes/editor
+rm -rf vendor/pretext
+cp -R ../pretext/dist vendor/pretext
+
 python3 -m http.server 8080
-# open http://localhost:8080/test.html
+# open http://localhost:8080/index.html
 ```
+
+The editor imports Pretext from `./vendor/pretext/layout.js`.
+
+## Vendoring Strategy
+
+For now, the practical vendoring loop is:
+
+```sh
+cd /Users/jak/src/pretext
+bun run build:package
+
+cd /Users/jak/src/vibes/editor
+rm -rf vendor/pretext
+cp -R ../pretext/dist vendor/pretext
+```
+
+The best permanent setup is usually one of these:
+
+1. Add a tiny sync script in the editor repo, for example `scripts/vendor-pretext.sh`, that rebuilds Pretext and recopies `dist/`.
+2. Pin a specific upstream commit in a small `vendor/pretext/VERSION` or `vendor/pretext/UPSTREAM` text file so updates are traceable.
+3. If these repos will keep evolving together, move to a workspace/monorepo or subtree-based flow so vendoring is reproducible instead of manual.
+
+For this editor specifically, I’d recommend option 1 plus a small version file:
+- keep vendoring `dist/` only
+- add a one-command sync script
+- record the upstream Pretext commit hash beside the vendored files
+
+That keeps the runtime dependency tiny while still making updates deliberate and reviewable.
 
 To embed in your own page:
 
@@ -46,32 +81,35 @@ Four modules, each with a single responsibility:
 
 | File | Role |
 |------|------|
-| `model.js` | Text buffer, cursor, selection, font config. The only source of truth. |
-| `layout.js` | Pure function: model state → positioned character boxes. Handles soft-wrap and hit-testing. |
+| `model.js` | Text buffer, grapheme cursor/selection state, prepared Pretext handle, and offset interop helpers. |
+| `layout.js` | Pure function: model state → visual lines with caret geometry from Pretext. |
 | `view.js` | Reads layout output, paints to `<canvas>`. Owns the blink timer and the hidden `<textarea>` used for input capture. |
 | `input.js` | Attaches DOM listeners, translates events into `model.edit()` / `model.setCursor()` calls. No state beyond drag tracking. |
 | `editor.js` | Wires the four modules together. Exposes the public API. Wraps `model.edit()` to implement the undo stack. |
 
 ## Data Model
 
-**Buffer** — a flat string. Positions are integer offsets (0 = before first char).
+**Buffer** — a flat string.
 
-**Selection** — an `anchor` (fixed end) and a `cursor` (active end). When equal, no selection exists. The selected range is always `[min(anchor, cursor), max(anchor, cursor))`.
+**Cursor/Selection** — the primary cursor and anchor are Pretext `LayoutCursor` objects, so movement stays aligned to grapheme boundaries. Legacy offset helpers are still exposed for commands and integration code that want JS string offsets.
 
-**Layout** — each logical line produces a `VisualLine` with a `charBoxes` array. Each `CharBox` holds `{ offset, x, width }`. The last box on every visual line is a zero-width sentinel pointing to the `\n` (or end-of-buffer) position — used for cursor placement and newline selection rendering.
+**Layout** — the editor prepares the whole buffer with Pretext `whiteSpace: 'pre-wrap'`, lays it out into visual lines, and stores caret x positions plus aligned source offsets for every visible grapheme boundary.
 
 ## Public API
 
 ```js
 // Mutation
 editor.edit([start, end], replacement)   // replace half-open range
-editor.setCursor(offset, extend?)        // move cursor; extend=true keeps anchor
+editor.setCursor(cursor, extend?)        // move to a LayoutCursor; extend=true keeps anchor
+editor.setCursorOffset(offset, extend?)  // legacy offset interop
 
 // Read
 editor.getText()
 editor.setText(text)
-editor.getCursor()          // → number
-editor.getSelection()       // → [start, end] | null
+editor.getCursor()          // → { segmentIndex, graphemeIndex }
+editor.getCursorOffset()    // → number
+editor.getSelection()       // → [startCursor, endCursor] | null
+editor.getSelectionOffsets() // → [startOffset, endOffset] | null
 editor.getSelectedText()    // → string
 
 // Commands (all disabled by default; enable explicitly)
@@ -97,7 +135,7 @@ editor.destroy()
 |-----|--------|
 | Arrows | Move cursor |
 | Shift+Arrows | Extend selection |
-| Ctrl/Cmd+Arrows | Jump to line/doc start/end |
+| Ctrl/Cmd+Arrows | Jump to visual line start/end |
 | Alt+Left/Right | Word-left / word-right |
 | Home / End | Line start / end |
 | Backspace / Delete | Delete char or selection |

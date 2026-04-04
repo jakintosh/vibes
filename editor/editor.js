@@ -45,7 +45,7 @@ export function createEditor(containerEl, options = {}) {
     },
     cut: {
       default: (ed) => {
-        const sel = model.getSelection();
+        const sel = model.getSelectionOffsets();
         if (!sel) return;
         const text = model.getSelectedText();
         navigator.clipboard.writeText(text).catch(() => {});
@@ -55,16 +55,16 @@ export function createEditor(containerEl, options = {}) {
     paste: {
       default: (ed) => {
         navigator.clipboard.readText().then((text) => {
-          const sel = model.getSelection();
-          const cursor = model.getCursor();
+          const sel = model.getSelectionOffsets();
+          const cursor = model.getCursorOffset();
           model.edit(sel || [cursor, cursor], text);
         }).catch(() => {});
       },
     },
     selectAll: {
       default: (ed) => {
-        model.setCursor(0, false);
-        model.setCursor(model.getText().length, true);
+        model.setCursorOffset(0, false);
+        model.setCursorOffset(model.getText().length, true);
       },
     },
     undo: {
@@ -73,7 +73,7 @@ export function createEditor(containerEl, options = {}) {
         const entry = undoStack.pop();
         const invertRange = [entry.range[0], entry.range[0] + entry.inserted.length];
         originalEdit(invertRange, entry.removed);
-        model.setCursor(entry.cursorBefore, false);
+        model.setCursorOffset(entry.cursorBefore, false);
         redoStack.push(entry);
       },
     },
@@ -82,7 +82,7 @@ export function createEditor(containerEl, options = {}) {
         if (!undoEnabled || !redoStack.length) return;
         const entry = redoStack.pop();
         originalEdit(entry.range, entry.inserted);
-        model.setCursor(entry.cursorAfter, false);
+        model.setCursorOffset(entry.cursorAfter, false);
         undoStack.push(entry);
       },
     },
@@ -115,12 +115,15 @@ export function createEditor(containerEl, options = {}) {
     // Core
     edit(range, replacement) { model.edit(range, replacement); },
     setCursor(offset, extend) { model.setCursor(offset, extend); },
+    setCursorOffset(offset, extend) { model.setCursorOffset(offset, extend); },
 
     // Read
     getText() { return model.getText(); },
     setText(text) { model.setText(text); },
     getCursor() { return model.getCursor(); },
+    getCursorOffset() { return model.getCursorOffset(); },
     getSelection() { return model.getSelection(); },
+    getSelectionOffsets() { return model.getSelectionOffsets(); },
     getSelectedText() { return model.getSelectedText(); },
 
     // Commands

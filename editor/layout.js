@@ -1,168 +1,115 @@
-// Layout — pure transformation: (Model state, MeasureContext) → LayoutResult
+import {
+  layoutWithLines,
+  measureLineCarets,
+} from "./vendor/pretext/layout.js";
 
-export function createMeasureContext(font) {
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  ctx.font = fontString(font);
-  return {
-    ctx,
-    setFont(f) {
-      ctx.font = fontString(f);
-    },
-    measureText(text) {
-      return ctx.measureText(text);
-    },
-  };
+function findLineIndex(y, layout) {
+  if (!layout || !layout.lines.length) return -1;
+  let bestIndex = 0;
+  for (let i = 0; i < layout.lines.length; i++) {
+    if (y >= layout.lines[i].y) bestIndex = i;
+    else break;
+  }
+  return bestIndex;
 }
 
-function fontString(font) {
+function nearestBoundaryIndex(line, x) {
+  const positions = line.caretX;
+  let lo = 0;
+  let hi = positions.length - 1;
+
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (positions[mid] < x) lo = mid + 1;
+    else hi = mid;
+  }
+
+  if (lo === 0) return 0;
+  const prev = positions[lo - 1];
+  const curr = positions[lo];
+  return Math.abs(x - prev) <= Math.abs(curr - x) ? lo - 1 : lo;
+}
+
+export function fontString(font) {
   return `${font.style} ${font.weight} ${font.size}px ${font.family}`;
 }
 
-// Compute x positions for each character boundary in a string (0..text.length)
-// Returns array of length text.length + 1
-function computeXPositions(ctx, text) {
-  const positions = new Float32Array(text.length + 1);
-  positions[0] = 0;
-  for (let i = 0; i < text.length; i++) {
-    positions[i + 1] = ctx.measureText(text.slice(0, i + 1)).width;
-  }
-  return positions;
-}
-
-export function computeLayout(model, measureCtx, containerWidth) {
+export function computeLayout(model, containerWidth) {
   const font = model.getFont();
   const opts = model.getOptions();
-  const lines = model.getLines();
-
-  measureCtx.setFont(font);
-
-  const charHeight = font.size;
+  const prepared = model.getPrepared();
   const lineHeight = typeof font.lineHeight === "number" && font.lineHeight < 10
     ? font.size * font.lineHeight
     : (typeof font.lineHeight === "number" ? font.lineHeight : font.size * 1.5);
-
   const wrapWidth = opts.softWrap
     ? (opts.wrapWidth || containerWidth || Infinity)
     : Infinity;
+  const result = layoutWithLines(prepared, wrapWidth, lineHeight);
 
-  const visualLines = [];
+  const lines = [];
   let y = 0;
   let maxX = 0;
-
-  for (const { text, startOffset } of lines) {
-    const xPositions = computeXPositions(measureCtx.ctx, text);
-    const charBoxes = [];
-
-    // Build char boxes for each character in the logical line
-    for (let i = 0; i <= text.length; i++) {
-      charBoxes.push({
-        offset: startOffset + i,
-        x: xPositions[i],
-        width: i < text.length ? (xPositions[i + 1] - xPositions[i]) : 0,
-      });
-    }
-
-    if (!opts.softWrap || wrapWidth === Infinity) {
-      // No wrapping
-      const lineMaxX = xPositions[text.length];
-      if (lineMaxX > maxX) maxX = lineMaxX;
-      visualLines.push({ y, height: lineHeight, charBoxes, startOffset, text });
-      y += lineHeight;
-    } else {
-      // Soft wrap: split char boxes into visual sub-lines
-      let segStart = 0;
-      while (segStart <= text.length) {
-        // Find how many chars fit
-        let segEnd = segStart;
-        const baseX = xPositions[segStart];
-        while (segEnd < text.length && (xPositions[segEnd + 1] - baseX) <= wrapWidth) {
-          segEnd++;
-        }
-        if (segEnd === segStart && segEnd < text.length) segEnd++; // at least one char
-
-        // Build sub-line char boxes with adjusted x
-        const subBoxes = [];
-        for (let i = segStart; i <= segEnd; i++) {
-          subBoxes.push({
-            offset: startOffset + i,
-            x: xPositions[i] - baseX,
-            width: i < text.length ? (xPositions[i + 1] - xPositions[i]) : 0,
-          });
-        }
-
-        const lineW = xPositions[segEnd] - baseX;
-        if (lineW > maxX) maxX = lineW;
-
-        visualLines.push({
-          y,
-          height: lineHeight,
-          charBoxes: subBoxes,
-          startOffset: startOffset + segStart,
-          text: text.slice(segStart, segEnd),
-        });
-        y += lineHeight;
-
-        if (segEnd === text.length) break;
-        segStart = segEnd;
-      }
-    }
+  for (const line of result.lines) {
+    const geometry = measureLineCarets(prepared, line);
+    if (line.width > maxX) maxX = line.width;
+    lines.push({
+      text: line.text,
+      y,
+      height: lineHeight,
+      width: line.width,
+      start: line.start,
+      end: line.end,
+      caretX: geometry.x,
+      caretOffsets: geometry.offsets,
+      contentEndOffset: geometry.contentEndOffset,
+      endOffset: geometry.endOffset,
+      endsWithHardBreak: geometry.endsWithHardBreak,
+    });
+    y += lineHeight;
   }
 
   return {
-    lines: visualLines,
+    lines,
     contentWidth: maxX,
-    contentHeight: y,
-    charHeight,
+    contentHeight: result.height,
+    charHeight: font.size,
     lineHeight,
   };
 }
 
 export function offsetFromPoint(x, y, layout) {
   if (!layout || !layout.lines.length) return 0;
+  const lineIndex = findLineIndex(y, layout);
+  const line = layout.lines[Math.max(0, lineIndex)];
+  const boundaryIndex = nearestBoundaryIndex(line, x);
+  return line.caretOffsets[boundaryIndex];
+}
 
-  // Find the visual line
-  let bestLine = layout.lines[0];
+export function findVisualLineForOffset(offset, layout) {
+  if (!layout || !layout.lines.length) return null;
+
   for (const line of layout.lines) {
-    if (y >= line.y) bestLine = line;
-    else break;
+    if (offset < line.caretOffsets[0]) break;
+    if (offset <= line.contentEndOffset) return line;
+    if (line.endsWithHardBreak && offset === line.endOffset) return line;
   }
 
-  const boxes = bestLine.charBoxes;
-  if (!boxes.length) return bestLine.startOffset;
-
-  // Find nearest char boundary by checking each box's left edge
-  // The last box in a visual line represents end-of-line (width 0, or the \n position)
-  let best = boxes[0];
-  let bestDist = Infinity;
-
-  for (let i = 0; i < boxes.length; i++) {
-    const box = boxes[i];
-    const dist = Math.abs(x - box.x);
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = box;
-    }
-  }
-
-  return best.offset;
+  return layout.lines[layout.lines.length - 1];
 }
 
 export function getCursorBox(offset, layout) {
-  if (!layout || !layout.lines.length) return { x: 0, y: 0, height: layout ? layout.lineHeight : 14 };
-
-  for (const line of layout.lines) {
-    const boxes = line.charBoxes;
-    for (const box of boxes) {
-      if (box.offset === offset) {
-        return { x: box.x, y: line.y, height: line.height };
-      }
-    }
+  if (!layout || !layout.lines.length) {
+    return { x: 0, y: 0, height: layout ? layout.lineHeight : 14 };
   }
 
-  // Fallback: last position
-  const last = layout.lines[layout.lines.length - 1];
-  const lastBoxes = last.charBoxes;
-  const lastBox = lastBoxes[lastBoxes.length - 1];
-  return { x: lastBox ? lastBox.x : 0, y: last.y, height: last.height };
+  const line = findVisualLineForOffset(offset, layout);
+  if (!line) return { x: 0, y: 0, height: layout.lineHeight };
+
+  let boundaryIndex = line.caretOffsets.indexOf(offset);
+  if (boundaryIndex < 0 && line.endsWithHardBreak && offset === line.endOffset) {
+    boundaryIndex = line.caretOffsets.length - 1;
+  }
+  if (boundaryIndex < 0) boundaryIndex = 0;
+
+  return { x: line.caretX[boundaryIndex], y: line.y, height: line.height, line };
 }

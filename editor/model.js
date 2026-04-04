@@ -1,9 +1,28 @@
-// Model — owns the text buffer, cursor, selection, and font config.
+import {
+  cursorToOffset,
+  offsetToCursor,
+  prepareWithSegments,
+} from "./vendor/pretext/layout.js";
+
+function cloneCursor(cursor) {
+  return { segmentIndex: cursor.segmentIndex, graphemeIndex: cursor.graphemeIndex };
+}
+
+function compareCursors(a, b) {
+  if (a.segmentIndex !== b.segmentIndex) return a.segmentIndex - b.segmentIndex;
+  return a.graphemeIndex - b.graphemeIndex;
+}
+
+function sortCursorRange(a, b) {
+  return compareCursors(a, b) <= 0 ? [a, b] : [b, a];
+}
+
+function fontString(font) {
+  return `${font.style} ${font.weight} ${font.size}px ${font.family}`;
+}
 
 export function createModel(initialText = "", fontConfig = {}, options = {}) {
   let buffer = initialText;
-  let cursor = 0;
-  let anchor = 0;
 
   const font = {
     family: "monospace",
@@ -22,6 +41,10 @@ export function createModel(initialText = "", fontConfig = {}, options = {}) {
     ...options,
   };
 
+  let prepared = prepareWithSegments(buffer, fontString(font), { whiteSpace: "pre-wrap" });
+  let cursor = { segmentIndex: 0, graphemeIndex: 0 };
+  let anchor = { segmentIndex: 0, graphemeIndex: 0 };
+
   const changeListeners = [];
   const selectionListeners = [];
 
@@ -33,66 +56,94 @@ export function createModel(initialText = "", fontConfig = {}, options = {}) {
     for (const fn of selectionListeners) fn();
   }
 
-  function adjustOffset(pos, start, end, replacementLen) {
-    if (pos < start) return pos;
-    if (pos < end) return start + replacementLen;
-    return pos + (start + replacementLen - end);
+  function reprepare() {
+    prepared = prepareWithSegments(buffer, fontString(font), { whiteSpace: "pre-wrap" });
+  }
+
+  function getCursorOffsetValue(value) {
+    return cursorToOffset(prepared, value);
+  }
+
+  function getSelectionRange() {
+    if (compareCursors(anchor, cursor) === 0) return null;
+    const [start, end] = sortCursorRange(anchor, cursor);
+    return [cloneCursor(start), cloneCursor(end)];
   }
 
   const model = {
-    // Mutation API
     edit(range, replacement) {
       if (opts.readOnly) return;
-      const [start, end] = [Math.min(range[0], range[1]), Math.max(range[0], range[1])];
-      const clampedStart = Math.max(0, Math.min(start, buffer.length));
-      const clampedEnd = Math.max(0, Math.min(end, buffer.length));
+      const start = Math.max(0, Math.min(range[0], buffer.length));
+      const end = Math.max(0, Math.min(range[1], buffer.length));
+      const [clampedStart, clampedEnd] = start <= end ? [start, end] : [end, start];
 
       buffer = buffer.slice(0, clampedStart) + replacement + buffer.slice(clampedEnd);
+      reprepare();
 
-      cursor = adjustOffset(cursor, clampedStart, clampedEnd, replacement.length);
-      anchor = adjustOffset(anchor, clampedStart, clampedEnd, replacement.length);
-
-      notify();
-    },
-
-    setCursor(offset, extend = false) {
-      const clamped = Math.max(0, Math.min(offset, buffer.length));
-      cursor = clamped;
-      if (!extend) anchor = clamped;
+      const nextOffset = clampedStart + replacement.length;
+      cursor = offsetToCursor(prepared, nextOffset, "forward");
+      anchor = cloneCursor(cursor);
       notifySelection();
       notify();
     },
 
-    // Read helpers
-    getText() { return buffer; },
-    setText(text) {
-      buffer = text;
-      cursor = Math.min(cursor, buffer.length);
-      anchor = Math.min(anchor, buffer.length);
+    setCursor(nextCursor, extend = false) {
+      cursor = cloneCursor(nextCursor);
+      if (!extend) anchor = cloneCursor(nextCursor);
+      notifySelection();
       notify();
     },
-    getCursor() { return cursor; },
-    getAnchor() { return anchor; },
-    getSelection() {
-      if (anchor === cursor) return null;
-      return [Math.min(anchor, cursor), Math.max(anchor, cursor)];
-    },
-    getSelectedText() {
-      const sel = model.getSelection();
-      if (!sel) return "";
-      return buffer.slice(sel[0], sel[1]);
+
+    setCursorOffset(offset, extend = false, affinity = "forward") {
+      model.setCursor(offsetToCursor(prepared, offset, affinity), extend);
     },
 
-    getLines() {
-      const lines = [];
-      let offset = 0;
-      const parts = buffer.split("\n");
-      for (const text of parts) {
-        lines.push({ text, startOffset: offset });
-        offset += text.length + 1; // +1 for the \n
-      }
-      return lines;
+    getText() { return buffer; },
+    setText(text) {
+      const cursorOffset = model.getCursorOffset();
+      const anchorOffset = model.getAnchorOffset();
+      buffer = text;
+      reprepare();
+      cursor = offsetToCursor(prepared, Math.min(cursorOffset, buffer.length), "forward");
+      anchor = offsetToCursor(prepared, Math.min(anchorOffset, buffer.length), "forward");
+      notifySelection();
+      notify();
     },
+
+    getPrepared() { return prepared; },
+    getCursor() { return cloneCursor(cursor); },
+    getAnchor() { return cloneCursor(anchor); },
+    getCursorOffset() { return getCursorOffsetValue(cursor); },
+    getAnchorOffset() { return getCursorOffsetValue(anchor); },
+
+    getSelection() {
+      return getSelectionRange();
+    },
+
+    getSelectionOffsets() {
+      const selection = getSelectionRange();
+      if (!selection) return null;
+      return [
+        getCursorOffsetValue(selection[0]),
+        getCursorOffsetValue(selection[1]),
+      ];
+    },
+
+    getSelectedText() {
+      const selection = model.getSelectionOffsets();
+      if (!selection) return "";
+      return buffer.slice(selection[0], selection[1]);
+    },
+
+    offsetToCursor(offset, affinity = "forward") {
+      return offsetToCursor(prepared, offset, affinity);
+    },
+
+    cursorToOffset(cursorValue) {
+      return getCursorOffsetValue(cursorValue);
+    },
+
+    compareCursors,
 
     positionToLineCol(offset) {
       const clamped = Math.max(0, Math.min(offset, buffer.length));
@@ -113,7 +164,12 @@ export function createModel(initialText = "", fontConfig = {}, options = {}) {
 
     getFont() { return { ...font }; },
     setFont(config) {
+      const cursorOffset = model.getCursorOffset();
+      const anchorOffset = model.getAnchorOffset();
       Object.assign(font, config);
+      reprepare();
+      cursor = offsetToCursor(prepared, cursorOffset, "forward");
+      anchor = offsetToCursor(prepared, anchorOffset, "forward");
       notify();
     },
 
@@ -125,12 +181,18 @@ export function createModel(initialText = "", fontConfig = {}, options = {}) {
 
     onChange(fn) {
       changeListeners.push(fn);
-      return () => { const i = changeListeners.indexOf(fn); if (i >= 0) changeListeners.splice(i, 1); };
+      return () => {
+        const i = changeListeners.indexOf(fn);
+        if (i >= 0) changeListeners.splice(i, 1);
+      };
     },
 
     onSelectionChange(fn) {
       selectionListeners.push(fn);
-      return () => { const i = selectionListeners.indexOf(fn); if (i >= 0) selectionListeners.splice(i, 1); };
+      return () => {
+        const i = selectionListeners.indexOf(fn);
+        if (i >= 0) selectionListeners.splice(i, 1);
+      };
     },
   };
 
