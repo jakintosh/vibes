@@ -38,6 +38,7 @@ export function computeLayout(model, containerWidth) {
   const font = model.getFont();
   const opts = model.getOptions();
   const prepared = model.getPrepared();
+  const text = model.getText();
   const lineHeight = typeof font.lineHeight === "number" && font.lineHeight < 10
     ? font.size * font.lineHeight
     : (typeof font.lineHeight === "number" ? font.lineHeight : font.size * 1.5);
@@ -59,6 +60,7 @@ export function computeLayout(model, containerWidth) {
       width: line.width,
       start: line.start,
       end: line.end,
+      startOffset: geometry.offsets[0],
       caretX: geometry.x,
       caretOffsets: geometry.offsets,
       contentEndOffset: geometry.contentEndOffset,
@@ -68,10 +70,32 @@ export function computeLayout(model, containerWidth) {
     y += lineHeight;
   }
 
+  // Pretext intentionally does not invent an extra trailing empty line for a
+  // terminal hard break, but an editor caret needs that final visual row.
+  if (text.endsWith("\n")) {
+    const terminalOffset = text.length;
+    const terminalCursor = model.offsetToCursor(terminalOffset, "forward");
+    lines.push({
+      text: "",
+      y,
+      height: lineHeight,
+      width: 0,
+      start: terminalCursor,
+      end: terminalCursor,
+      startOffset: terminalOffset,
+      caretX: Float32Array.from([0]),
+      caretOffsets: Int32Array.from([terminalOffset]),
+      contentEndOffset: terminalOffset,
+      endOffset: terminalOffset,
+      endsWithHardBreak: false,
+    });
+    y += lineHeight;
+  }
+
   return {
     lines,
     contentWidth: maxX,
-    contentHeight: result.height,
+    contentHeight: y,
     charHeight: font.size,
     lineHeight,
   };
@@ -89,9 +113,11 @@ export function findVisualLineForOffset(offset, layout) {
   if (!layout || !layout.lines.length) return null;
 
   for (const line of layout.lines) {
-    if (offset < line.caretOffsets[0]) break;
+    // A consumed hard break shares its post-newline offset with the next line's
+    // start, and that boundary should visually belong to the next line.
+    if (offset < line.startOffset) break;
+    if (offset === line.startOffset) return line;
     if (offset <= line.contentEndOffset) return line;
-    if (line.endsWithHardBreak && offset === line.endOffset) return line;
   }
 
   return layout.lines[layout.lines.length - 1];
