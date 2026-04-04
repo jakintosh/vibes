@@ -62,6 +62,18 @@ export function createInput(containerEl, model, view, commands) {
     return pos;
   }
 
+  function targetLeft(buffer, cursor, ctrl, alt) {
+    if (ctrl) return findLineStart(cursor);
+    if (alt)  return findWordBoundary(buffer, cursor, -1);
+    return Math.max(0, cursor - 1);
+  }
+
+  function targetRight(buffer, cursor, ctrl, alt) {
+    if (ctrl) return findLineEnd(cursor);
+    if (alt)  return findWordBoundary(buffer, cursor, 1);
+    return Math.min(buffer.length, cursor + 1);
+  }
+
   function getVisualXForOffset(offset) {
     const layout = view.getLayout();
     if (!layout) return 0;
@@ -157,27 +169,19 @@ export function createInput(containerEl, model, view, commands) {
     switch (e.key) {
       case "ArrowLeft": {
         e.preventDefault();
-        if (ctrl) {
-          model.setCursor(findLineStart(cursor), shift);
-        } else if (alt) {
-          model.setCursor(findWordBoundary(buffer, cursor, -1), shift);
-        } else if (!shift && selection) {
+        if (!shift && selection) {
           model.setCursor(selection[0], false);
         } else {
-          model.setCursor(Math.max(0, cursor - 1), shift);
+          model.setCursor(targetLeft(buffer, cursor, ctrl, alt), shift);
         }
         break;
       }
       case "ArrowRight": {
         e.preventDefault();
-        if (ctrl) {
-          model.setCursor(findLineEnd(cursor), shift);
-        } else if (alt) {
-          model.setCursor(findWordBoundary(buffer, cursor, 1), shift);
-        } else if (!shift && selection) {
+        if (!shift && selection) {
           model.setCursor(selection[1], false);
         } else {
-          model.setCursor(Math.min(buffer.length, cursor + 1), shift);
+          model.setCursor(targetRight(buffer, cursor, ctrl, alt), shift);
         }
         break;
       }
@@ -209,8 +213,9 @@ export function createInput(containerEl, model, view, commands) {
         e.preventDefault();
         if (selection) {
           model.edit(selection, "");
-        } else if (cursor > 0) {
-          model.edit([cursor - 1, cursor], "");
+        } else {
+          const target = targetLeft(buffer, cursor, ctrl, alt);
+          if (target !== cursor) model.edit([target, cursor], "");
         }
         break;
       }
@@ -218,8 +223,9 @@ export function createInput(containerEl, model, view, commands) {
         e.preventDefault();
         if (selection) {
           model.edit(selection, "");
-        } else if (cursor < buffer.length) {
-          model.edit([cursor, cursor + 1], "");
+        } else {
+          const target = targetRight(buffer, cursor, ctrl, alt);
+          if (target !== cursor) model.edit([cursor, target], "");
         }
         break;
       }
